@@ -8,9 +8,10 @@ const placeholderLoginPrefix = "replace-";
  * Hardcoded team configuration used to map GitHub reviewer logins to Vates teams.
  *
  * @remarks
+ * - This file is the versioned source of truth for team membership in the extension.
  * - Login matching is case-insensitive in domain mapping.
  * - Keep the canonical GitHub login spelling here.
- * - Replace placeholder members with real reviewers before production use.
+ * - Placeholder members are temporary setup values and must be replaced before production use.
  */
 export const teamConfig: TeamConfig = {
   frontend: [
