@@ -1,0 +1,9 @@
+llm:
+  provider: mistral
+  model: mistral-large-latest
+  apiKeySecret: MISTRAL_API_KEY
+
+review:
+  mode: full
+  autoReviewDrafts: false
+  severityThreshold: minor
