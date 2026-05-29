@@ -122,12 +122,12 @@ async function fetchOpenPRsPage(
 }
 
 function getHttpErrorReason(response: Response): ErrorReason {
-  if (response.status === 401) {
-    return "AUTH";
-  }
-
   if (isRateLimitedResponse(response)) {
     return "RATE_LIMIT";
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    return "AUTH";
   }
 
   return "NETWORK";

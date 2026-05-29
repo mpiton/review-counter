@@ -124,6 +124,15 @@ describe("fetchOpenPRs", () => {
     });
   });
 
+  it("returns AUTH for a mocked forbidden permission response", async () => {
+    const { fetchImpl } = createFetchMock([new Response(null, { status: 403 })]);
+
+    await expect(fetchOpenPRs("secret-token", fetchImpl)).resolves.toEqual({
+      ok: false,
+      reason: "AUTH",
+    });
+  });
+
   it("returns RATE_LIMIT when GitHub reports an exhausted rate limit", async () => {
     const { fetchImpl } = createFetchMock([
       new Response(null, {
