@@ -76,4 +76,44 @@ describe("GitHub GraphQL open pull requests query", () => {
       pullRequests: [{ reviewRequests: [{ login: "Alice" }] }, { reviewRequests: [] }],
     });
   });
+
+  it("normalizes an empty search result without dropping pagination", () => {
+    const response: OpenPullRequestsQueryResponse = {
+      search: {
+        pageInfo: {
+          hasNextPage: false,
+          endCursor: null,
+        },
+        nodes: [],
+      },
+    };
+
+    expect(normalizeOpenPullRequestsResponse(response)).toEqual({
+      pageInfo: {
+        hasNextPage: false,
+        endCursor: null,
+      },
+      pullRequests: [],
+    });
+  });
+
+  it("ignores pages without pull request nodes", () => {
+    const response: OpenPullRequestsQueryResponse = {
+      search: {
+        pageInfo: {
+          hasNextPage: true,
+          endCursor: "cursor-without-prs",
+        },
+        nodes: [{ __typename: "Issue" }, { __typename: "Discussion" }, null],
+      },
+    };
+
+    expect(normalizeOpenPullRequestsResponse(response)).toEqual({
+      pageInfo: {
+        hasNextPage: true,
+        endCursor: "cursor-without-prs",
+      },
+      pullRequests: [],
+    });
+  });
 });
