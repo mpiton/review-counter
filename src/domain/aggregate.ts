@@ -19,6 +19,9 @@ export type ReviewCountsByLogin = Map<string, number>;
 
 /**
  * Normalize GitHub logins for case-insensitive matching across domain modules.
+ *
+ * @param login - Raw GitHub login from a review request.
+ * @returns The trimmed, lowercase login used as the aggregation key.
  */
 export function normalizeLogin(login: string): string {
   return login.trim().toLowerCase();
@@ -26,6 +29,9 @@ export function normalizeLogin(login: string): string {
 
 /**
  * Count the number of pull requests where each login is requested for review.
+ *
+ * @param pullRequests - Open pull requests with normalized review request data.
+ * @returns Review request counts keyed by normalized GitHub login.
  */
 export function aggregate(pullRequests: readonly PullRequestReviewRequests[]): ReviewCountsByLogin {
   const counts = new Map<string, number>();
