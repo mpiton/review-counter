@@ -1,17 +1,32 @@
+/**
+ * Requested GitHub user attached to a pull request review request.
+ */
 export interface RequestedReviewer {
   readonly login: string;
 }
 
+/**
+ * Normalized pull request shape consumed by the domain aggregation layer.
+ */
 export interface PullRequestReviewRequests {
   reviewRequests: readonly RequestedReviewer[];
 }
 
+/**
+ * Review request counts indexed by normalized GitHub login.
+ */
 export type ReviewCountsByLogin = Map<string, number>;
 
+/**
+ * Normalize GitHub logins for case-insensitive matching across domain modules.
+ */
 export function normalizeLogin(login: string): string {
   return login.trim().toLowerCase();
 }
 
+/**
+ * Count the number of pull requests where each login is requested for review.
+ */
 export function aggregate(pullRequests: readonly PullRequestReviewRequests[]): ReviewCountsByLogin {
   const counts = new Map<string, number>();
 
