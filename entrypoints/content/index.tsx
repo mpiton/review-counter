@@ -7,7 +7,12 @@ const rootId = "vates-review-counter-root";
 export default defineContentScript({
   matches: ["https://github.com/vatesfr/*"],
   main() {
-    document.getElementById(rootId)?.remove();
+    const existingRoot = document.getElementById(rootId);
+
+    if (existingRoot !== null) {
+      console.debug("[Vates Review Counter] Removing existing root element", { rootId });
+      existingRoot.remove();
+    }
 
     const host = document.createElement("div");
     host.id = rootId;
