@@ -37,13 +37,27 @@ function createGraphqlResponse(
   response: OpenPullRequestsGraphqlResponse,
   init: ResponseInit = {},
 ): Response {
-  const headers = new Headers(init.headers);
-  headers.set("content-type", "application/json");
+  return createJsonResponse(response, init);
+}
 
-  return new Response(JSON.stringify(response), {
+function createJsonResponse(payload: unknown, init: ResponseInit = {}): Response {
+  return new Response(JSON.stringify(payload), {
     status: 200,
     ...init,
-    headers,
+    headers: createJsonHeaders(init.headers),
+  });
+}
+
+function createJsonHeaders(initHeaders: HeadersInit | undefined): Headers {
+  const headers = new Headers(initHeaders);
+  headers.set("content-type", "application/json");
+
+  return headers;
+}
+
+function createGraphqlErrorResponse(error: unknown): Response {
+  return createJsonResponse({
+    errors: [error],
   });
 }
 
@@ -70,7 +84,7 @@ function createOpenPullRequestsPage(
         ],
       },
     },
-  };
+  } satisfies OpenPullRequestsGraphqlResponse;
 }
 
 describe("fetchOpenPRs", () => {
@@ -124,6 +138,34 @@ describe("fetchOpenPRs", () => {
     });
   });
 
+  it("returns RATE_LIMIT when GitHub reports a GraphQL rate limit error", async () => {
+    const { fetchImpl } = createFetchMock([
+      createGraphqlErrorResponse({
+        extensions: { code: "RATE_LIMITED" },
+        message: "You have exceeded a secondary rate limit.",
+      }),
+    ]);
+
+    await expect(fetchOpenPRs("secret-token", fetchImpl)).resolves.toEqual({
+      ok: false,
+      reason: "RATE_LIMIT",
+    });
+  });
+
+  it("returns AUTH when GitHub reports a GraphQL auth scope error", async () => {
+    const { fetchImpl } = createFetchMock([
+      createGraphqlErrorResponse({
+        message: "Your token has not been granted the required scopes to execute this query.",
+        type: "INSUFFICIENT_SCOPES",
+      }),
+    ]);
+
+    await expect(fetchOpenPRs("secret-token", fetchImpl)).resolves.toEqual({
+      ok: false,
+      reason: "AUTH",
+    });
+  });
+
   it("returns NETWORK when fetch rejects", async () => {
     const fetchImpl: GitHubFetch = async () => {
       throw new TypeError("Failed to fetch");
@@ -162,8 +204,12 @@ describe("fetchOpenPRs", () => {
       createGraphqlResponse(createOpenPullRequestsPage(false, null, "alice")),
     ]);
 
-    await fetchOpenPRs("secret-token", fetchImpl);
+    try {
+      await fetchOpenPRs("secret-token", fetchImpl);
 
-    expect(consoleLog).not.toHaveBeenCalled();
+      expect(consoleLog).not.toHaveBeenCalled();
+    } finally {
+      consoleLog.mockRestore();
+    }
   });
 });

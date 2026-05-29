@@ -16,18 +16,40 @@ import {
   normalizeOpenPullRequestsResponse,
 } from "./graphql";
 
+/**
+ * GitHub GraphQL endpoint used by the background client.
+ */
 export const GITHUB_GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
 
+/**
+ * Typed reasons returned when GitHub pull request fetching fails.
+ */
 export type ErrorReason = "AUTH" | "RATE_LIMIT" | "NETWORK";
 
+/**
+ * Discriminated result container used instead of throwing for expected failures.
+ */
 export type Result<TValue, TError> =
   | { readonly ok: true; readonly value: TValue }
   | { readonly ok: false; readonly reason: TError };
 
+/**
+ * Normalized open pull requests consumed by the aggregation layer.
+ */
 export type NormalizedPRs = readonly PullRequestReviewRequests[];
 
+/**
+ * Fetch-compatible implementation injected by tests.
+ */
 export type GitHubFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
+/**
+ * Fetch all open pull requests and requested reviewers from GitHub.
+ *
+ * @param token - GitHub personal access token; only sent to the GitHub API endpoint.
+ * @param fetchImpl - Optional fetch implementation for tests.
+ * @returns Normalized pull requests or a typed error reason.
+ */
 export async function fetchOpenPRs(
   token: string,
   fetchImpl: GitHubFetch = fetch,
@@ -85,6 +107,10 @@ async function fetchOpenPRsPage(
       return { ok: false, reason: "RATE_LIMIT" };
     }
 
+    if (hasAuthGraphqlError(payload)) {
+      return { ok: false, reason: "AUTH" };
+    }
+
     if (hasGraphqlErrors(payload) || !isOpenPullRequestsGraphqlResponse(payload)) {
       return { ok: false, reason: "NETWORK" };
     }
@@ -112,40 +138,134 @@ function isRateLimitedResponse(response: Response): boolean {
 }
 
 function hasGraphqlErrors(payload: unknown): boolean {
-  return isRecord(payload) && isReadonlyUnknownArray(payload.errors) && payload.errors.length > 0;
+  return getGraphqlErrors(payload).length > 0;
 }
 
 function hasRateLimitGraphqlError(payload: unknown): boolean {
-  if (!isRecord(payload) || !isReadonlyUnknownArray(payload.errors)) {
-    return false;
-  }
+  return getGraphqlErrors(payload).some(isRateLimitGraphqlError);
+}
 
-  return payload.errors.some(isRateLimitGraphqlError);
+function hasAuthGraphqlError(payload: unknown): boolean {
+  return getGraphqlErrors(payload).some(isAuthGraphqlError);
 }
 
 function isRateLimitGraphqlError(error: unknown): boolean {
-  if (!isRecord(error)) {
-    return false;
+  const code = getGraphqlErrorCode(error);
+  const type = getGraphqlErrorType(error);
+  const message = getGraphqlErrorMessage(error);
+
+  return code === "RATE_LIMITED" || type === "RATE_LIMITED" || message.includes("rate limit");
+}
+
+function isAuthGraphqlError(error: unknown): boolean {
+  const code = getGraphqlErrorCode(error);
+  const type = getGraphqlErrorType(error);
+  const message = getGraphqlErrorMessage(error);
+
+  return (
+    code === "INSUFFICIENT_SCOPES" ||
+    code === "FORBIDDEN" ||
+    code === "UNAUTHORIZED" ||
+    type === "INSUFFICIENT_SCOPES" ||
+    type === "FORBIDDEN" ||
+    type === "UNAUTHORIZED" ||
+    message.includes("bad credentials") ||
+    message.includes("forbidden") ||
+    message.includes("insufficient scopes") ||
+    message.includes("missing scope") ||
+    message.includes("not been granted") ||
+    message.includes("permission") ||
+    message.includes("requires one of the following scopes") ||
+    message.includes("resource not accessible by")
+  );
+}
+
+function getGraphqlErrors(payload: unknown): readonly unknown[] {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("errors" in payload) ||
+    !isReadonlyUnknownArray(payload.errors)
+  ) {
+    return [];
   }
 
-  const type = typeof error.type === "string" ? error.type.toUpperCase() : "";
-  const message = typeof error.message === "string" ? error.message.toLowerCase() : "";
+  return payload.errors;
+}
 
-  return type === "RATE_LIMITED" || message.includes("rate limit");
+function getGraphqlErrorCode(error: unknown): string {
+  if (typeof error !== "object" || error === null || !("extensions" in error)) {
+    return "";
+  }
+
+  const extensions = error.extensions;
+
+  if (
+    typeof extensions !== "object" ||
+    extensions === null ||
+    !("code" in extensions) ||
+    typeof extensions.code !== "string"
+  ) {
+    return "";
+  }
+
+  return extensions.code.toUpperCase();
+}
+
+function getGraphqlErrorType(error: unknown): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("type" in error) ||
+    typeof error.type !== "string"
+  ) {
+    return "";
+  }
+
+  return error.type.toUpperCase();
+}
+
+function getGraphqlErrorMessage(error: unknown): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("message" in error) ||
+    typeof error.message !== "string"
+  ) {
+    return "";
+  }
+
+  return error.message.toLowerCase();
 }
 
 function isOpenPullRequestsGraphqlResponse(
   value: unknown,
 ): value is OpenPullRequestsGraphqlResponse {
-  return isRecord(value) && isOpenPullRequestsQueryResponse(value.data);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "data" in value &&
+    isOpenPullRequestsQueryResponse(value.data)
+  );
 }
 
 function isOpenPullRequestsQueryResponse(value: unknown): value is OpenPullRequestsQueryResponse {
-  return isRecord(value) && isSearchConnection(value.search);
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "search" in value &&
+    isSearchConnection(value.search)
+  );
 }
 
 function isSearchConnection(value: unknown): value is OpenPullRequestsSearchConnection {
-  if (!isRecord(value) || !isPageInfo(value.pageInfo)) {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("pageInfo" in value) ||
+    !("nodes" in value) ||
+    !isPageInfo(value.pageInfo)
+  ) {
     return false;
   }
 
@@ -156,7 +276,10 @@ function isSearchConnection(value: unknown): value is OpenPullRequestsSearchConn
 
 function isPageInfo(value: unknown): value is OpenPullRequestsPageInfo {
   return (
-    isRecord(value) &&
+    typeof value === "object" &&
+    value !== null &&
+    "hasNextPage" in value &&
+    "endCursor" in value &&
     typeof value.hasNextPage === "boolean" &&
     (typeof value.endCursor === "string" || value.endCursor === null)
   );
@@ -167,7 +290,11 @@ function isSearchNode(value: unknown): value is OpenPullRequestsSearchNode | nul
     return true;
   }
 
-  if (!isRecord(value) || typeof value.__typename !== "string") {
+  if (
+    typeof value !== "object" ||
+    !("__typename" in value) ||
+    typeof value.__typename !== "string"
+  ) {
     return false;
   }
 
@@ -175,19 +302,32 @@ function isSearchNode(value: unknown): value is OpenPullRequestsSearchNode | nul
     return true;
   }
 
-  return typeof value.number === "number" && isReviewRequestsConnection(value.reviewRequests);
+  return (
+    "number" in value &&
+    "reviewRequests" in value &&
+    typeof value.number === "number" &&
+    isReviewRequestsConnection(value.reviewRequests)
+  );
 }
 
 function isReviewRequestsConnection(value: unknown): value is GitHubReviewRequestsConnection {
   return (
-    isRecord(value) &&
+    typeof value === "object" &&
+    value !== null &&
+    "nodes" in value &&
     (value.nodes === null ||
       (isReadonlyUnknownArray(value.nodes) && value.nodes.every(isReviewRequestNode)))
   );
 }
 
 function isReviewRequestNode(value: unknown): value is GitHubReviewRequestNode | null {
-  return value === null || (isRecord(value) && isRequestedReviewer(value.requestedReviewer));
+  return (
+    value === null ||
+    (typeof value === "object" &&
+      value !== null &&
+      "requestedReviewer" in value &&
+      isRequestedReviewer(value.requestedReviewer))
+  );
 }
 
 function isRequestedReviewer(value: unknown): value is GitHubRequestedReviewer | null {
@@ -195,7 +335,11 @@ function isRequestedReviewer(value: unknown): value is GitHubRequestedReviewer |
     return true;
   }
 
-  if (!isRecord(value) || typeof value.__typename !== "string") {
+  if (
+    typeof value !== "object" ||
+    !("__typename" in value) ||
+    typeof value.__typename !== "string"
+  ) {
     return false;
   }
 
@@ -203,11 +347,7 @@ function isRequestedReviewer(value: unknown): value is GitHubRequestedReviewer |
     return true;
   }
 
-  return typeof value.login === "string";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return "login" in value && typeof value.login === "string";
 }
 
 function isReadonlyUnknownArray(value: unknown): value is readonly unknown[] {
