@@ -4,9 +4,9 @@ import type { ReviewCount, TeamConfig, TeamMember, TeamReviewCounts } from "./ty
 /**
  * Map aggregated review request counts to configured team sections.
  *
- * @param counts - Review request counts keyed by GitHub login.
- * @param teamConfig - Hardcoded team configuration used for section mapping.
- * @returns Team sections including zero-count configured members and unknown reviewers.
+ * @param counts - Aggregated review request counts keyed by raw or normalized GitHub login.
+ * @param teamConfig - Frontend/backend members to include and match case-insensitively.
+ * @returns Sorted team sections including zero-count configured members and unknown reviewers.
  */
 export function mapToTeams(
   counts: ReadonlyMap<string, number>,
