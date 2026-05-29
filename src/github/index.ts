@@ -1,9 +1,13 @@
+export { GITHUB_GRAPHQL_ENDPOINT, fetchOpenPRs } from "./client";
+
 export {
   OPEN_PULL_REQUESTS_QUERY,
   OPEN_PULL_REQUESTS_SEARCH_QUERY,
   createOpenPullRequestsVariables,
   normalizeOpenPullRequestsResponse,
 } from "./graphql";
+
+export type { ErrorReason, GitHubFetch, NormalizedPRs, Result } from "./client";
 
 export type {
   GitHubOtherRequestedReviewer,
