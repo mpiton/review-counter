@@ -35,6 +35,7 @@ export function normalizeLogin(login: string): string {
  */
 export function aggregate(pullRequests: readonly PullRequestReviewRequests[]): ReviewCountsByLogin {
   const counts = new Map<string, number>();
+  /** Tracks normalized logins already counted for the current pull request. */
   const countedLogins = new Set<string>();
 
   for (const pullRequest of pullRequests) {

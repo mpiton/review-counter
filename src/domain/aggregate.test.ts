@@ -48,4 +48,22 @@ describe("aggregate", () => {
 
     expect(counts).toEqual(new Map([["alice", 1]]));
   });
+
+  it("handles a large number of pull requests with per-PR deduplication", () => {
+    const pullRequests = Array.from({ length: 10_000 }, (_, index) => ({
+      reviewRequests: [
+        { login: index % 2 === 0 ? "alice" : "bob" },
+        { login: index % 2 === 0 ? "ALICE" : "BOB" },
+      ],
+    }));
+
+    const counts = aggregate(pullRequests);
+
+    expect(counts).toEqual(
+      new Map([
+        ["alice", 5_000],
+        ["bob", 5_000],
+      ]),
+    );
+  });
 });
