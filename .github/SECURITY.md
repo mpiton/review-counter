@@ -15,7 +15,7 @@
 Instead, please report them via one of these methods:
 
 1. **GitHub Security Advisories**: Use the [Security Advisory](https://github.com/mpiton/review-counter/security/advisories/new) feature
-2. **Email**: Send details to `security@mpiton.dev`
+2. **Email**: Send details to `matpiton@protonmail.com`
 
 ### What to Include
 
