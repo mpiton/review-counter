@@ -1,5 +1,5 @@
 export interface RequestedReviewer {
-  login: string;
+  readonly login: string;
 }
 
 export interface PullRequestReviewRequests {
