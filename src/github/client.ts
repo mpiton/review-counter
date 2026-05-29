@@ -78,6 +78,9 @@ export async function fetchOpenPRs(
   }
 }
 
+/**
+ * Fetch one GraphQL search page and classify transport or payload failures.
+ */
 async function fetchOpenPRsPage(
   token: string,
   cursor: string | null,
@@ -121,6 +124,9 @@ async function fetchOpenPRsPage(
   }
 }
 
+/**
+ * Map GitHub transport failures to the public error contract.
+ */
 function getHttpErrorReason(response: Response): ErrorReason {
   if (isRateLimitedResponse(response)) {
     return "RATE_LIMIT";
@@ -180,6 +186,9 @@ function isAuthGraphqlError(error: unknown): boolean {
   );
 }
 
+/**
+ * Extract GraphQL errors from an unknown payload before shape validation.
+ */
 function getGraphqlErrors(payload: unknown): readonly unknown[] {
   if (
     typeof payload !== "object" ||
@@ -238,6 +247,9 @@ function getGraphqlErrorMessage(error: unknown): string {
   return error.message.toLowerCase();
 }
 
+/**
+ * Validate the GraphQL response shape before normalization.
+ */
 function isOpenPullRequestsGraphqlResponse(
   value: unknown,
 ): value is OpenPullRequestsGraphqlResponse {
