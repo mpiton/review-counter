@@ -1,0 +1,29 @@
+import type { OverlayPosition } from "../../src/ui/components";
+
+export const overlayConfig = {
+  storageKey: "vatesReviewCounter.overlayPosition",
+  defaultOffsetPx: 24,
+  edgeOffsetPx: 8,
+  panelWidthPx: 320,
+  panelMaxHeightRatio: 0.7,
+  planetImageUrl: "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png",
+  threshold: 4,
+} as const;
+
+export const defaultOverlayPosition: OverlayPosition = {
+  right: overlayConfig.defaultOffsetPx,
+  bottom: overlayConfig.defaultOffsetPx,
+};
+
+export const overlayThemeClassName =
+  "[--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]";
+
+export const fallbackPanelClassName =
+  "pointer-events-auto fixed overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
+
+export const fallbackPanelStyle = {
+  maxHeight: `${overlayConfig.panelMaxHeightRatio * 100}vh`,
+  width: overlayConfig.panelWidthPx,
+} as const;
+
+export const overlayUnavailableLabel = "Overlay indisponible.";

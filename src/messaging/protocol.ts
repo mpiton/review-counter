@@ -21,9 +21,23 @@ type GetTokenRequest = { readonly kind: "GET_TOKEN" };
 type SetTokenRequest = { readonly kind: "SET_TOKEN"; readonly token: string };
 type FetchReviewCountsRequest = { readonly kind: "FETCH_REVIEW_COUNTS"; readonly force?: boolean };
 
+/**
+ * Metadata attached to review count responses for UI cache freshness and scan context.
+ */
+export interface ReviewCountsResponseMetadata {
+  /** Timestamp, in epoch milliseconds, when the background fetched or cached the data. */
+  readonly fetchedAt: number;
+  /** Number of open pull requests scanned before reviewer counts were aggregated. */
+  readonly openPullRequestCount: number;
+}
+
 type TokenResponse = { readonly kind: "TOKEN"; readonly token: string | null };
 type OkResponse = { readonly kind: "OK" };
-type ReviewCountsResponse = { readonly kind: "REVIEW_COUNTS"; readonly data: TeamReviewCounts };
+type ReviewCountsResponse = {
+  readonly kind: "REVIEW_COUNTS";
+  readonly data: TeamReviewCounts;
+  readonly meta: ReviewCountsResponseMetadata;
+};
 type ErrorResponse = { readonly kind: "ERROR"; readonly reason: MessageErrorReason };
 
 /**

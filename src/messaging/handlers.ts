@@ -11,7 +11,7 @@ import type { TeamConfig, TeamReviewCounts } from "../domain/types";
 import { fetchOpenPRs as defaultFetchOpenPRs } from "../github";
 import type { ErrorReason, NormalizedPRs, Result } from "../github";
 import { getToken as defaultGetToken, setToken as defaultSetToken } from "../storage";
-import type { Request, Response } from "./protocol";
+import type { Request, Response, ReviewCountsResponseMetadata } from "./protocol";
 
 /** Time window where background review counts can be served without refetching GitHub. */
 export const DEFAULT_REVIEW_COUNTS_CACHE_TTL_MS = 60_000;
@@ -49,7 +49,7 @@ interface MessageHandlerDependencies {
 
 interface ReviewCountsCacheEntry {
   readonly data: TeamReviewCounts;
-  readonly fetchedAt: number;
+  readonly meta: ReviewCountsResponseMetadata;
 }
 
 type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_COUNTS" }>;
@@ -76,7 +76,7 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
 
       case "FETCH_REVIEW_COUNTS":
         if (shouldServeCachedReviewCounts(request, cache, dependencies)) {
-          return { kind: "REVIEW_COUNTS", data: cache.data };
+          return { kind: "REVIEW_COUNTS", data: cache.data, meta: cache.meta };
         }
 
         return fetchReviewCounts(dependencies, (entry) => {
@@ -130,11 +130,15 @@ async function fetchReviewCounts(
   }
 
   const data = mapToTeams(aggregate(result.value), dependencies.teamConfig);
-  writeCache({ data, fetchedAt: dependencies.now() });
+  const meta = {
+    fetchedAt: dependencies.now(),
+    openPullRequestCount: result.value.length,
+  } satisfies ReviewCountsResponseMetadata;
+  writeCache({ data, meta });
 
-  return { kind: "REVIEW_COUNTS", data };
+  return { kind: "REVIEW_COUNTS", data, meta };
 }
 
 function isCacheFresh(cache: ReviewCountsCacheEntry, currentTime: number, ttlMs: number): boolean {
-  return currentTime - cache.fetchedAt < ttlMs;
+  return currentTime - cache.meta.fetchedAt < ttlMs;
 }
