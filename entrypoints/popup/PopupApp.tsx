@@ -42,7 +42,7 @@ export function PopupApp() {
   }
 
   return (
-    <main className="w-[300px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl [--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]">
+    <main className="w-[300px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] font-sans text-[var(--fg)] shadow-2xl">
       <PopupHeader />
       <TokenForm onSaveToken={saveAndValidateToken} onStatusChange={setStatus} status={status} />
     </main>

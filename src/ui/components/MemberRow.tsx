@@ -27,7 +27,7 @@ export function MemberRow({ member, threshold = 4, tone }: MemberRowProps) {
       <span className="min-w-0 truncate text-[13px] leading-none text-[var(--fg)]">
         {member.displayName}
       </span>
-      <span className="ml-auto max-w-[92px] shrink-0 truncate whitespace-nowrap font-mono text-[11px] leading-none text-[var(--fg-muted)]">
+      <span className="ml-auto max-w-[92px] shrink-0 truncate whitespace-nowrap font-mono text-[11px] leading-none text-[var(--fg)]">
         {member.login}
       </span>
       <CountBadge count={member.count} threshold={threshold} tone={tone} />

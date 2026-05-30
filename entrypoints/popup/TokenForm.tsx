@@ -108,7 +108,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
 
       <div className="mt-1 flex items-center gap-3">
         <button
-          className="h-9 rounded-md bg-[var(--accent-fe)] px-4 text-[12px] font-semibold text-white transition-opacity disabled:opacity-40"
+          className="h-9 rounded-md bg-[var(--accent-fe)] px-4 text-[12px] font-semibold text-[var(--on-accent)] transition-opacity disabled:opacity-40"
           disabled={!canSave}
           type="submit"
         >
@@ -118,7 +118,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
       </div>
 
       <a
-        className="mt-1 font-mono text-[12px] text-[var(--accent-fe)] hover:underline"
+        className="mt-1 font-mono text-[12px] text-[var(--fg)] underline decoration-[var(--accent-fe)] decoration-2 underline-offset-2 hover:decoration-[var(--fg)]"
         href={TOKEN_SETTINGS_URL}
         rel="noopener noreferrer"
         target="_blank"
@@ -137,7 +137,7 @@ function TokenField({ onChange, onToggleReveal, revealToken, token }: TokenField
       <input
         aria-describedby="token-scope-help"
         autoComplete="off"
-        className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-[var(--fg)] outline-none placeholder:text-[var(--fg-muted)]"
+        className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-[var(--fg)] outline-none placeholder:text-[var(--fg-subtle)]"
         id="github-token"
         maxLength={GITHUB_TOKEN_MAX_LENGTH}
         onChange={onChange}
@@ -148,7 +148,7 @@ function TokenField({ onChange, onToggleReveal, revealToken, token }: TokenField
       />
       <button
         aria-label={`${toggleLabel} le token`}
-        className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--fg-muted)] hover:text-[var(--fg)]"
+        className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--fg)] hover:text-[var(--fg)]"
         onClick={onToggleReveal}
         type="button"
       >

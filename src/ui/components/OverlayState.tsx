@@ -39,7 +39,7 @@ export function StateShell({ action, desc, icon, title }: StateShellProps) {
 export function PillButton({ children, onClick, tone = "neutral" }: PillButtonProps) {
   const className =
     tone === "accent"
-      ? "border-transparent bg-[var(--accent-fe)] text-white"
+      ? "border-transparent bg-[var(--accent-fe)] text-[#1a1b38]"
       : "border-[var(--border)] text-[var(--fg)] hover:bg-[var(--surface)]";
 
   return (

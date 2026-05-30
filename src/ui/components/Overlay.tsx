@@ -106,7 +106,7 @@ export function Overlay({
       className={`pointer-events-auto fixed flex max-h-[70vh] w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl ${className}`}
       role="dialog"
       style={{ right: position.right, bottom: position.bottom }}
-      tabIndex={-1}
+      tabIndex={0}
     >
       <OverlayHeader
         isLoading={isLoading}

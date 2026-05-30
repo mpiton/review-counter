@@ -1,4 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
 @source "../../entrypoints";
 @source "../";
