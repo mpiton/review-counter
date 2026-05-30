@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { statusViews } from "./connectionStatus";
 import type { ConnectionStatus, StatusView } from "./connectionStatus";
+import { GITHUB_TOKEN_MAX_LENGTH, TOKEN_REVEAL_DURATION_MS, TOKEN_SETTINGS_URL } from "./constants";
 
 /** Props for the token configuration form and its background save flow. */
 interface TokenFormProps {
@@ -23,10 +24,6 @@ interface StatusIndicatorProps {
   readonly view: StatusView;
 }
 
-const tokenSettingsUrl =
-  "https://github.com/settings/tokens/new?scopes=public_repo&description=Vates%20Review%20Counter";
-const REVEAL_TOKEN_TIMEOUT_MS = 15_000;
-
 export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProps) {
   const [token, setToken] = useState("");
   const [revealToken, setRevealToken] = useState(false);
@@ -41,7 +38,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
 
     const timeoutId = window.setTimeout(() => {
       setRevealToken(false);
-    }, REVEAL_TOKEN_TIMEOUT_MS);
+    }, TOKEN_REVEAL_DURATION_MS);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -112,7 +109,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
 
       <a
         className="mt-1 font-mono text-[12px] text-[var(--accent-fe)] hover:underline"
-        href={tokenSettingsUrl}
+        href={TOKEN_SETTINGS_URL}
         rel="noopener noreferrer"
         target="_blank"
       >
@@ -132,6 +129,7 @@ function TokenField({ onChange, onToggleReveal, revealToken, token }: TokenField
         autoComplete="off"
         className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-[var(--fg)] outline-none placeholder:text-[var(--fg-muted)]"
         id="github-token"
+        maxLength={GITHUB_TOKEN_MAX_LENGTH}
         onChange={onChange}
         placeholder="Saisir votre PAT GitHub"
         spellCheck={false}

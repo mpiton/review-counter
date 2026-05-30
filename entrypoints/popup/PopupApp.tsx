@@ -1,25 +1,26 @@
 import { sendMessage } from "../../src/messaging";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { connectionStatusFromResponse } from "./connectionStatus";
 import type { ConnectionStatus } from "./connectionStatus";
 import { PopupHeader } from "./PopupHeader";
 import { TokenForm } from "./TokenForm";
 
 export function PopupApp() {
+  const activeRef = useRef(false);
   const [status, setStatus] = useState<ConnectionStatus>("testing");
 
   useEffect(() => {
-    let active = true;
+    activeRef.current = true;
 
     async function validateStoredToken(): Promise<void> {
       try {
         const response = await sendMessage({ kind: "FETCH_REVIEW_COUNTS", force: true });
 
-        if (active) {
+        if (activeRef.current) {
           setStatus(connectionStatusFromResponse(response));
         }
       } catch {
-        if (active) {
+        if (activeRef.current) {
           setStatus("error");
         }
       }
@@ -28,7 +29,7 @@ export function PopupApp() {
     void validateStoredToken();
 
     return () => {
-      active = false;
+      activeRef.current = false;
     };
   }, []);
 
