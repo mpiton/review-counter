@@ -1,0 +1,180 @@
+/**
+ * @vitest-environment happy-dom
+ */
+import { act } from "react";
+import type { ReactNode } from "react";
+import { createRoot } from "react-dom/client";
+import type { Root } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { TeamReviewCounts } from "../../domain";
+import { Overlay, PlanetButton } from "./index";
+import type { OverlayStateKind } from "./types";
+
+const planetImageUrl = "https://example.com/planet.png";
+const position = { right: 24, bottom: 24 };
+const counts = {
+  frontend: [
+    { login: "alice-gh", displayName: "Alice", count: 4 },
+    { login: "chloe-gh", displayName: "Chloe", count: 0 },
+  ],
+  backend: [{ login: "dan-gh", displayName: "Daniel", count: 2 }],
+  others: [{ login: "ext-gh", displayName: "ext-gh", count: 1 }],
+} satisfies TeamReviewCounts;
+
+const mountedRoots: MountedRoot[] = [];
+
+interface MountedRoot {
+  readonly container: HTMLDivElement;
+  readonly root: Root;
+}
+
+describe("overlay components", () => {
+  afterEach(() => {
+    for (const mountedRoot of mountedRoots.splice(0)) {
+      act(() => mountedRoot.root.unmount());
+      mountedRoot.container.remove();
+    }
+    vi.restoreAllMocks();
+  });
+
+  it("renders team sections, others, footer metadata, and hot badges", () => {
+    const { container } = renderOverlay({ state: "ok" });
+
+    expect(container.textContent).toContain("FRONTEND");
+    expect(container.textContent).toContain("BACKEND");
+    expect(container.textContent).toContain("AUTRES");
+    expect(container.textContent).toContain("Alice");
+    expect(container.textContent).toContain("4");
+    expect(container.textContent).toContain("12 PR ouvertes · maj il y a 30 s");
+    expect(container.querySelector("[title='Charge élevée']")?.className).toContain("badge-hot");
+  });
+
+  it.each([
+    ["empty", "Aucune PR ouverte"],
+    ["no-token", "Configurez votre token GitHub"],
+    ["auth-error", "Token invalide ou expiré"],
+    ["rate-limit", "Limite API atteinte"],
+    ["network-error", "Connexion impossible"],
+  ] satisfies readonly [OverlayStateKind, string][])("renders the %s state", (state, title) => {
+    const { container } = renderOverlay({ state });
+
+    expect(container.textContent).toContain(title);
+  });
+
+  it("runs degraded state actions", () => {
+    const onOpenConfiguration = vi.fn();
+    const onRefresh = vi.fn(async () => undefined);
+    let rendered = renderOverlay({ onOpenConfiguration, state: "no-token" });
+
+    clickButton(rendered.container, "Ouvrir la configuration");
+
+    expect(onOpenConfiguration).toHaveBeenCalledTimes(1);
+
+    rendered = renderOverlay({ onRefresh, state: "network-error" });
+    clickButton(rendered.container, "Réessayer");
+
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on Escape", () => {
+    const onClose = vi.fn();
+    renderOverlay({ onClose, state: "ok" });
+
+    act(() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a refresh spinner while refresh is in progress", () => {
+    const onRefresh = vi.fn(async () => undefined);
+    const { container } = renderOverlay({ onRefresh, state: "ok" });
+
+    clickButton(container, "Rafraîchir");
+
+    const refreshIcon = getButton(container, "Rafraîchir").querySelector("span");
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(refreshIcon?.className).toContain("animate-spin");
+  });
+
+  it("renders the collapsed launcher count and alert marker", () => {
+    const { container, root } = render(
+      <PlanetButton
+        onClick={() => undefined}
+        planetImageUrl={planetImageUrl}
+        position={position}
+        state="ok"
+        total={7}
+      />,
+    );
+
+    expect(container.textContent).toContain("7");
+
+    act(() => {
+      root.render(
+        <PlanetButton
+          onClick={() => undefined}
+          planetImageUrl={planetImageUrl}
+          position={position}
+          state="auth-error"
+          total={0}
+        />,
+      );
+    });
+
+    expect(hasElementWithClass(container, "bg-[#be1622]")).toBe(true);
+  });
+});
+
+function renderOverlay(overrides: Partial<Parameters<typeof Overlay>[0]> = {}): MountedRoot {
+  return render(
+    <Overlay
+      data={counts}
+      freshness="il y a 30 s"
+      onClose={() => undefined}
+      onOpenConfiguration={() => undefined}
+      onPositionChange={() => undefined}
+      onRefresh={async () => undefined}
+      openPullRequestCount={12}
+      planetImageUrl={planetImageUrl}
+      position={position}
+      state="ok"
+      {...overrides}
+    />,
+  );
+}
+
+function render(element: ReactNode): MountedRoot {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => root.render(element));
+
+  const mountedRoot = { container, root } satisfies MountedRoot;
+  mountedRoots.push(mountedRoot);
+
+  return mountedRoot;
+}
+
+function hasElementWithClass(container: HTMLElement, className: string): boolean {
+  return [...container.querySelectorAll("*")].some((element) =>
+    element.className.toString().includes(className),
+  );
+}
+
+function clickButton(container: HTMLElement, name: string): void {
+  act(() => getButton(container, name).click());
+}
+
+function getButton(container: HTMLElement, name: string): HTMLButtonElement {
+  const button = [...container.querySelectorAll("button")].find(
+    (candidate) =>
+      candidate.textContent?.includes(name) || candidate.getAttribute("aria-label") === name,
+  );
+
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Button not found: ${name}`);
+  }
+
+  return button;
+}

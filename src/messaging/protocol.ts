@@ -21,9 +21,18 @@ type GetTokenRequest = { readonly kind: "GET_TOKEN" };
 type SetTokenRequest = { readonly kind: "SET_TOKEN"; readonly token: string };
 type FetchReviewCountsRequest = { readonly kind: "FETCH_REVIEW_COUNTS"; readonly force?: boolean };
 
+export interface ReviewCountsMetadata {
+  readonly fetchedAt: number;
+  readonly openPullRequestCount: number;
+}
+
 type TokenResponse = { readonly kind: "TOKEN"; readonly token: string | null };
 type OkResponse = { readonly kind: "OK" };
-type ReviewCountsResponse = { readonly kind: "REVIEW_COUNTS"; readonly data: TeamReviewCounts };
+type ReviewCountsResponse = {
+  readonly kind: "REVIEW_COUNTS";
+  readonly data: TeamReviewCounts;
+  readonly meta: ReviewCountsMetadata;
+};
 type ErrorResponse = { readonly kind: "ERROR"; readonly reason: MessageErrorReason };
 
 /**

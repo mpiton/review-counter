@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import type { TeamReviewCounts } from "../../domain";
 import { sendMessage } from "../../messaging";
 import type { MessageErrorReason, Request } from "../../messaging";
+import type { ReviewCountsMetadata } from "../../messaging";
 
 /** Stable React Query cache key for review count data. */
 export const REVIEW_COUNTS_QUERY_KEY: readonly ["reviewCounts"] = ["reviewCounts"];
@@ -25,8 +26,14 @@ export type ReviewCountsStatus = "loading" | "error" | "success";
 export interface UseReviewCountsResult {
   readonly data: TeamReviewCounts | undefined;
   readonly error: ReviewCountsError | null;
+  readonly meta: ReviewCountsMetadata | undefined;
   readonly refresh: () => Promise<void>;
   readonly status: ReviewCountsStatus;
+}
+
+interface ReviewCountsSnapshot {
+  readonly data: TeamReviewCounts;
+  readonly meta: ReviewCountsMetadata;
 }
 
 /** Typed review count failure that preserves the background messaging error reason. */
@@ -56,7 +63,7 @@ const reviewCountsQueryOptions = {
 /** Fetch, cache, and refresh aggregated review counts through background messaging. */
 export function useReviewCounts(): UseReviewCountsResult {
   const queryClient = useQueryClient();
-  const query = useQuery<TeamReviewCounts, ReviewCountsError>({
+  const query = useQuery<ReviewCountsSnapshot, ReviewCountsError>({
     ...reviewCountsQueryOptions,
     queryFn: () => fetchReviewCounts(false),
   });
@@ -68,7 +75,7 @@ export function useReviewCounts(): UseReviewCountsResult {
     });
 
     try {
-      await queryClient.fetchQuery<TeamReviewCounts, ReviewCountsError>({
+      await queryClient.fetchQuery<ReviewCountsSnapshot, ReviewCountsError>({
         ...reviewCountsQueryOptions,
         queryFn: () => fetchReviewCounts(true),
       });
@@ -78,14 +85,15 @@ export function useReviewCounts(): UseReviewCountsResult {
   }, [queryClient]);
 
   return {
-    data: query.data,
+    data: query.data?.data,
     error: query.error,
+    meta: query.data?.meta,
     refresh,
     status: toReviewCountsStatus(query.status),
   };
 }
 
-async function fetchReviewCounts(force: boolean): Promise<TeamReviewCounts> {
+async function fetchReviewCounts(force: boolean): Promise<ReviewCountsSnapshot> {
   let response: Awaited<ReturnType<typeof sendMessage<FetchReviewCountsRequest>>>;
 
   try {
@@ -95,7 +103,10 @@ async function fetchReviewCounts(force: boolean): Promise<TeamReviewCounts> {
   }
 
   if (response.kind === "REVIEW_COUNTS") {
-    return response.data;
+    return {
+      data: response.data,
+      meta: response.meta,
+    };
   }
 
   throw new ReviewCountsError(response.reason);

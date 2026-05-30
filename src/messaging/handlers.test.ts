@@ -4,6 +4,7 @@ import type { TeamConfig, TeamReviewCounts } from "../domain/types";
 import type { ErrorReason, Result } from "../github";
 import { createMessageHandler } from "./handlers";
 import type { FetchOpenPullRequests, MessageHandlerOptions } from "./handlers";
+import type { ReviewCountsMetadata } from "./protocol";
 
 const cacheTtlMs = 60_000;
 
@@ -58,6 +59,10 @@ describe("background message handlers", () => {
         backend: [{ login: "bob", displayName: "Bob Backend", count: 0 }],
         others: [{ login: "unknown-reviewer", displayName: "unknown-reviewer", count: 1 }],
       } satisfies TeamReviewCounts,
+      meta: {
+        fetchedAt: 0,
+        openPullRequestCount: 2,
+      } satisfies ReviewCountsMetadata,
     });
     expect(dependencies.fetchCalls).toEqual(["secret-token"]);
   });

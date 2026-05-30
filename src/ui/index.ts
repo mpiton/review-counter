@@ -1,3 +1,4 @@
+export * from "./components";
 export {
   REVIEW_COUNTS_QUERY_KEY,
   REVIEW_COUNTS_RETRY_LIMIT,
