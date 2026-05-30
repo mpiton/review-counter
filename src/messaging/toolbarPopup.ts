@@ -4,8 +4,13 @@ interface PopupOpener {
   readonly openPopup: () => PopupOpenResult;
 }
 
+interface ToolbarPopupBrowser {
+  readonly action?: unknown;
+  readonly browserAction?: unknown;
+}
+
 /** Opens the extension toolbar popup across Chrome MV3 and Firefox MV2 builds. */
-export async function openToolbarPopup(extensionBrowser: unknown): Promise<void> {
+export async function openToolbarPopup(extensionBrowser: ToolbarPopupBrowser): Promise<void> {
   const openers = getPopupOpeners(extensionBrowser);
 
   if (openers.length === 0) {
@@ -26,15 +31,27 @@ export async function openToolbarPopup(extensionBrowser: unknown): Promise<void>
   throw new AggregateError(failures, "Failed to open toolbar popup");
 }
 
-function getPopupOpeners(extensionBrowser: unknown): readonly PopupOpener[] {
-  if (!isRecord(extensionBrowser)) {
-    return [];
+function getPopupOpeners(extensionBrowser: ToolbarPopupBrowser): readonly PopupOpener[] {
+  const actionOpener = getPopupOpener(extensionBrowser.action);
+  const browserActionOpener = getPopupOpener(extensionBrowser.browserAction);
+
+  if (actionOpener === undefined) {
+    return browserActionOpener === undefined ? [] : [browserActionOpener];
   }
 
-  const candidates = [extensionBrowser.action, extensionBrowser.browserAction];
-  const openers = candidates.filter(isPopupOpener);
+  if (browserActionOpener === undefined || browserActionOpener === actionOpener) {
+    return [actionOpener];
+  }
 
-  return Array.from(new Set(openers));
+  return [actionOpener, browserActionOpener];
+}
+
+function getPopupOpener(value: unknown): PopupOpener | undefined {
+  if (!isPopupOpener(value)) {
+    return undefined;
+  }
+
+  return value;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
