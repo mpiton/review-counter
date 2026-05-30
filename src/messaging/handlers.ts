@@ -1,3 +1,9 @@
+/**
+ * Background runtime message handlers.
+ *
+ * This module keeps the GitHub token in the background context, runs the GitHub fetch to domain
+ * aggregation to team mapping pipeline, and owns the service-worker in-memory review counts cache.
+ */
 import { teamConfig as defaultTeamConfig } from "../config/team.config";
 import { aggregate } from "../domain/aggregate";
 import { mapToTeams } from "../domain/mapping";
@@ -8,7 +14,7 @@ import { getToken as defaultGetToken, setToken as defaultSetToken } from "../sto
 import type { Request, Response } from "./protocol";
 
 /** Time window where background review counts can be served without refetching GitHub. */
-export const REVIEW_COUNTS_CACHE_TTL_MS = 60_000;
+export const DEFAULT_REVIEW_COUNTS_CACHE_TTL_MS = 60_000;
 
 /** Reads the locally stored GitHub token from the background context. */
 export type GetStoredToken = () => Promise<string | null>;
@@ -103,7 +109,7 @@ function createDependencies(options: MessageHandlerOptions): MessageHandlerDepen
     now: options.now ?? Date.now,
     setToken: options.setToken ?? defaultSetToken,
     teamConfig: options.teamConfig ?? defaultTeamConfig,
-    ttlMs: options.ttlMs ?? REVIEW_COUNTS_CACHE_TTL_MS,
+    ttlMs: options.ttlMs ?? DEFAULT_REVIEW_COUNTS_CACHE_TTL_MS,
   };
 }
 
