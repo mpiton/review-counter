@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import type { TeamReviewCounts } from "../../domain";
 import { sendMessage } from "../../messaging";
 import type { MessageErrorReason, Request } from "../../messaging";
-import type { ReviewCountsMetadata } from "../../messaging";
+import type { ReviewCountsResponseMetadata } from "../../messaging";
 
 /** Stable React Query cache key for review count data. */
 export const REVIEW_COUNTS_QUERY_KEY: readonly ["reviewCounts"] = ["reviewCounts"];
@@ -26,14 +26,14 @@ export type ReviewCountsStatus = "loading" | "error" | "success";
 export interface UseReviewCountsResult {
   readonly data: TeamReviewCounts | undefined;
   readonly error: ReviewCountsError | null;
-  readonly meta: ReviewCountsMetadata | undefined;
+  readonly meta: ReviewCountsResponseMetadata | undefined;
   readonly refresh: () => Promise<void>;
   readonly status: ReviewCountsStatus;
 }
 
 interface ReviewCountsSnapshot {
   readonly data: TeamReviewCounts;
-  readonly meta: ReviewCountsMetadata;
+  readonly meta: ReviewCountsResponseMetadata;
 }
 
 /** Typed review count failure that preserves the background messaging error reason. */

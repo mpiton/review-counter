@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { overlayStateContent } from "./overlayStateContent";
 import type { DegradedOverlayState } from "./types";
 
 interface StateShellProps {
@@ -53,57 +54,36 @@ export function PillButton({ children, onClick, tone = "neutral" }: PillButtonPr
 }
 
 export function OverlayState({ onOpenConfiguration, onRetry, state }: OverlayStateProps) {
-  switch (state) {
-    case "empty":
-      return (
-        <StateShell
-          desc="Personne n'attend de review. Profitez-en."
-          icon="🎉"
-          title="Aucune PR ouverte"
-        />
-      );
+  const content = overlayStateContent[state];
 
-    case "no-token":
-      return (
-        <StateShell
-          action={
-            <PillButton onClick={onOpenConfiguration} tone="accent">
-              Ouvrir la configuration
-            </PillButton>
-          }
-          desc="Un PAT avec le scope public_repo est requis pour compter les reviews."
-          icon="🔑"
-          title="Configurez votre token GitHub"
-        />
-      );
+  return (
+    <StateShell
+      action={createAction(state, content.actionLabel, content.actionTone, {
+        onOpenConfiguration,
+        onRetry,
+      })}
+      desc={content.desc}
+      icon={content.icon}
+      title={content.title}
+    />
+  );
+}
 
-    case "auth-error":
-      return (
-        <StateShell
-          action={<PillButton onClick={onOpenConfiguration}>Reconfigurer</PillButton>}
-          desc="GitHub a renvoyé 401. Régénérez un token et reconfigurez l'extension."
-          icon="⚠️"
-          title="Token invalide ou expiré"
-        />
-      );
-
-    case "rate-limit":
-      return (
-        <StateShell
-          desc="Le quota GitHub est épuisé. Réessayez dans un moment."
-          icon="⏳"
-          title="Limite API atteinte"
-        />
-      );
-
-    case "network-error":
-      return (
-        <StateShell
-          action={<PillButton onClick={onRetry}>Réessayer</PillButton>}
-          desc="Impossible de joindre l'API GitHub."
-          icon="📡"
-          title="Connexion impossible"
-        />
-      );
+function createAction(
+  state: DegradedOverlayState,
+  label: string | undefined,
+  tone: "accent" | "neutral" | undefined,
+  actions: Pick<OverlayStateProps, "onOpenConfiguration" | "onRetry">,
+): ReactNode {
+  if (label === undefined) {
+    return undefined;
   }
+
+  const onClick = state === "network-error" ? actions.onRetry : actions.onOpenConfiguration;
+
+  return (
+    <PillButton onClick={onClick} tone={tone}>
+      {label}
+    </PillButton>
+  );
 }

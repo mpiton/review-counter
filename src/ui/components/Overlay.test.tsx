@@ -34,6 +34,7 @@ describe("overlay components", () => {
       act(() => mountedRoot.root.unmount());
       mountedRoot.container.remove();
     }
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -61,7 +62,7 @@ describe("overlay components", () => {
     expect(container.textContent).toContain(title);
   });
 
-  it("runs degraded state actions", () => {
+  it("runs degraded state actions", async () => {
     const onOpenConfiguration = vi.fn();
     const onRefresh = vi.fn(async () => undefined);
     let rendered = renderOverlay({ onOpenConfiguration, state: "no-token" });
@@ -72,6 +73,7 @@ describe("overlay components", () => {
 
     rendered = renderOverlay({ onRefresh, state: "network-error" });
     clickButton(rendered.container, "Réessayer");
+    await flushMicrotasks();
 
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
@@ -85,15 +87,35 @@ describe("overlay components", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a refresh spinner while refresh is in progress", () => {
+  it("shows a refresh spinner while refresh is in progress", async () => {
     const onRefresh = vi.fn(async () => undefined);
     const { container } = renderOverlay({ onRefresh, state: "ok" });
 
     clickButton(container, "Rafraîchir");
+    await flushMicrotasks();
 
     const refreshIcon = getButton(container, "Rafraîchir").querySelector("span");
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(refreshIcon?.className).toContain("animate-spin");
+  });
+
+  it("handles refresh rejection and resets the spinner", async () => {
+    vi.useFakeTimers();
+    const onRefresh = vi.fn(async () => {
+      throw new Error("refresh failed");
+    });
+    const { container } = renderOverlay({ onRefresh, state: "ok" });
+
+    clickButton(container, "Rafraîchir");
+    await act(async () => undefined);
+
+    const refreshIcon = getButton(container, "Rafraîchir").querySelector("span");
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(refreshIcon?.className).toContain("animate-spin");
+
+    act(() => vi.advanceTimersByTime(850));
+
+    expect(refreshIcon?.className).not.toContain("animate-spin");
   });
 
   it("renders the collapsed launcher count and alert marker", () => {
@@ -164,6 +186,10 @@ function hasElementWithClass(container: HTMLElement, className: string): boolean
 
 function clickButton(container: HTMLElement, name: string): void {
   act(() => getButton(container, name).click());
+}
+
+async function flushMicrotasks(): Promise<void> {
+  await act(async () => undefined);
 }
 
 function getButton(container: HTMLElement, name: string): HTMLButtonElement {

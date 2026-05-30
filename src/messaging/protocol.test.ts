@@ -13,7 +13,7 @@ vi.mock("wxt/browser", () => ({
 
 import { sendMessage } from "./protocol";
 import type { Request, Response } from "./protocol";
-import type { ReviewCountsMetadata } from "./protocol";
+import type { ReviewCountsResponseMetadata } from "./protocol";
 
 type SetTokenRequest = Extract<Request, { readonly kind: "SET_TOKEN" }>;
 type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_COUNTS" }>;
@@ -60,7 +60,7 @@ describe("messaging protocol", () => {
     const meta = {
       fetchedAt: 1_700_000_000_000,
       openPullRequestCount: 12,
-    } satisfies ReviewCountsMetadata;
+    } satisfies ReviewCountsResponseMetadata;
     const request = { kind: "FETCH_REVIEW_COUNTS", force: true } satisfies FetchReviewCountsRequest;
     const response = { kind: "REVIEW_COUNTS", data, meta } satisfies ReviewCountsResponse;
     runtimeMock.sendMessage.mockResolvedValueOnce(response);

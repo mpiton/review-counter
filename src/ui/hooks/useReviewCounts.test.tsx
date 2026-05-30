@@ -7,7 +7,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TeamReviewCounts } from "../../domain";
 import type { MessageErrorReason, Request, Response } from "../../messaging";
-import type { ReviewCountsMetadata } from "../../messaging";
+import type { ReviewCountsResponseMetadata } from "../../messaging";
 
 const messagingMock = vi.hoisted(() => ({
   sendMessage: vi.fn<(request: Request) => Promise<Response>>(),
@@ -43,12 +43,12 @@ const refreshedCounts = {
 const initialMeta = {
   fetchedAt: 1_700_000_000_000,
   openPullRequestCount: 4,
-} satisfies ReviewCountsMetadata;
+} satisfies ReviewCountsResponseMetadata;
 
 const refreshedMeta = {
   fetchedAt: 1_700_000_030_000,
   openPullRequestCount: 6,
-} satisfies ReviewCountsMetadata;
+} satisfies ReviewCountsResponseMetadata;
 
 describe("useReviewCounts", () => {
   beforeEach(() => {

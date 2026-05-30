@@ -9,27 +9,13 @@ import type { MessageErrorReason } from "../../src/messaging";
 import { Overlay, PlanetButton } from "../../src/ui/components";
 import type { OverlayPosition, OverlayStateKind } from "../../src/ui/components";
 import { useReviewCounts } from "../../src/ui/hooks/useReviewCounts";
-
-const overlayConfig = {
-  storageKey: "vatesReviewCounter.overlayPosition",
-  defaultOffsetPx: 24,
-  edgeOffsetPx: 8,
-  panelWidthPx: 320,
-  panelMaxHeightRatio: 0.7,
-  planetImageUrl: "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png",
-  threshold: 4,
-} as const;
-
-const defaultPosition: OverlayPosition = {
-  right: overlayConfig.defaultOffsetPx,
-  bottom: overlayConfig.defaultOffsetPx,
-};
-
-const overlayThemeClassName =
-  "[--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]";
-
-const fallbackPanelClassName =
-  "pointer-events-auto fixed max-h-[70vh] w-[320px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
+import {
+  defaultOverlayPosition,
+  fallbackPanelClassName,
+  overlayConfig,
+  overlayThemeClassName,
+  overlayUnavailableLabel,
+} from "./overlayConfig";
 
 const queryClientConfig = {
   defaultOptions: {
@@ -76,9 +62,9 @@ class OverlayErrorBoundary extends Component<OverlayErrorBoundaryProps, OverlayE
         <div
           className={`${fallbackPanelClassName} ${overlayThemeClassName} px-3 py-4 text-[13px]`}
           role="alert"
-          style={{ right: defaultPosition.right, bottom: defaultPosition.bottom }}
+          style={{ right: defaultOverlayPosition.right, bottom: defaultOverlayPosition.bottom }}
         >
-          Overlay indisponible.
+          {overlayUnavailableLabel}
         </div>
       );
     }
@@ -138,7 +124,7 @@ function usePersistentOverlayPosition(): readonly [
   (position: OverlayPosition) => void,
 ] {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [position, setPosition] = useState(defaultPosition);
+  const [position, setPosition] = useState(defaultOverlayPosition);
   const updatePosition = useCallback((nextPosition: OverlayPosition) => {
     setPosition(normalizePosition(nextPosition));
   }, []);
@@ -155,7 +141,9 @@ function usePersistentOverlayPosition(): readonly [
 
         const storedPosition = values[overlayConfig.storageKey];
         setPosition(
-          isOverlayPosition(storedPosition) ? normalizePosition(storedPosition) : defaultPosition,
+          isOverlayPosition(storedPosition)
+            ? normalizePosition(storedPosition)
+            : defaultOverlayPosition,
         );
         setIsLoaded(true);
       })
@@ -165,7 +153,7 @@ function usePersistentOverlayPosition(): readonly [
         }
 
         console.warn("[Vates Review Counter] Failed to load overlay position", error);
-        setPosition(defaultPosition);
+        setPosition(defaultOverlayPosition);
         setIsLoaded(true);
       });
 
