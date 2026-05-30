@@ -8,8 +8,12 @@ export default defineConfig({
     version: "0.0.0",
     // Required for browser.storage.local token persistence; storage.sync is not used.
     permissions: ["storage"],
-    // Background-only GraphQL calls require api.github.com; page access stays limited to Vates paths.
-    host_permissions: ["https://api.github.com/*", "https://github.com/vatesfr/*"],
+    host_permissions: [
+      // GitHub GraphQL endpoint used only by the background service worker.
+      "https://api.github.com/*",
+      // GitHub repo pages where the content script and web-accessible fonts run.
+      "https://github.com/vatesfr/*",
+    ],
     action: {
       // Popup shown from the extension icon so users can configure their PAT.
       default_popup: "popup/index.html",
