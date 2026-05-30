@@ -13,21 +13,23 @@ interface OverlayPosition {
   readonly bottom: number;
 }
 
-const overlayPositionStorageKey = "vatesReviewCounter.overlayPosition";
-// Default offset follows the design reference: { right: 24, bottom: 24 }.
-const defaultOverlayOffsetPx = 24;
+const overlayConfig = {
+  storageKey: "vatesReviewCounter.overlayPosition",
+  // Default offset follows the design reference: { right: 24, bottom: 24 }.
+  defaultOffsetPx: 24,
+  // Minimum visible gutter kept while clamping persisted and dragged positions.
+  edgeOffsetPx: 8,
+  panelWidthPx: 320,
+  panelMaxHeightRatio: 0.7,
+  planetButtonSizePx: 52,
+  planetImageSizePx: 34,
+  headerPlanetImageSizePx: 20,
+  planetImageUrl: "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png",
+} as const;
 const defaultPosition: OverlayPosition = {
-  right: defaultOverlayOffsetPx,
-  bottom: defaultOverlayOffsetPx,
+  right: overlayConfig.defaultOffsetPx,
+  bottom: overlayConfig.defaultOffsetPx,
 };
-// Minimum visible gutter kept while clamping persisted and dragged positions.
-const edgeOffsetPx = 8;
-const overlayPanelWidthPx = 320;
-const overlayPanelMaxHeightRatio = 0.7;
-const planetButtonSizePx = 52;
-const planetImageSizePx = 34;
-const headerPlanetImageSizePx = 20;
-const planetImageUrl = "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png";
 const overlayPanelClassName =
   "pointer-events-auto fixed flex max-h-[70vh] w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
 const overlayThemeClassName =
@@ -184,9 +186,9 @@ function OverlayHeader({
           alt=""
           className={isLoading ? "animate-spin" : ""}
           draggable="false"
-          height={headerPlanetImageSizePx}
-          src={planetImageUrl}
-          width={headerPlanetImageSizePx}
+          height={overlayConfig.headerPlanetImageSizePx}
+          src={overlayConfig.planetImageUrl}
+          width={overlayConfig.headerPlanetImageSizePx}
         />
       </span>
       <span className="text-[13px] font-semibold">Vates Reviews</span>
@@ -233,8 +235,8 @@ function PlanetButton({
       style={{
         right: position.right,
         bottom: position.bottom,
-        width: planetButtonSizePx,
-        height: planetButtonSizePx,
+        width: overlayConfig.planetButtonSizePx,
+        height: overlayConfig.planetButtonSizePx,
       }}
       title="Ouvrir Vates Reviews"
       type="button"
@@ -243,9 +245,9 @@ function PlanetButton({
         alt=""
         className={isLoading ? "animate-spin" : ""}
         draggable="false"
-        height={planetImageSizePx}
-        src={planetImageUrl}
-        width={planetImageSizePx}
+        height={overlayConfig.planetImageSizePx}
+        src={overlayConfig.planetImageUrl}
+        width={overlayConfig.planetImageSizePx}
       />
       {total > 0 && (
         <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-[#1a1b38] bg-[#be1622] px-1 text-[11px] font-semibold tabular-nums text-white">
@@ -270,13 +272,13 @@ function usePersistentOverlayPosition(): readonly [
     let isActive = true;
 
     void browser.storage.local
-      .get(overlayPositionStorageKey)
+      .get(overlayConfig.storageKey)
       .then((values: Record<string, unknown>) => {
         if (!isActive) {
           return;
         }
 
-        const storedPosition = values[overlayPositionStorageKey];
+        const storedPosition = values[overlayConfig.storageKey];
         setPosition(
           isOverlayPosition(storedPosition) ? normalizePosition(storedPosition) : defaultPosition,
         );
@@ -302,7 +304,7 @@ function usePersistentOverlayPosition(): readonly [
       return;
     }
 
-    void browser.storage.local.set({ [overlayPositionStorageKey]: position });
+    void browser.storage.local.set({ [overlayConfig.storageKey]: position });
   }, [isLoaded, position]);
 
   return [position, setPosition];
@@ -340,19 +342,25 @@ function normalizePosition(position: OverlayPosition): OverlayPosition {
   const bounds = getOverlayPositionBounds();
 
   return {
-    right: clamp(position.right, edgeOffsetPx, bounds.maxRight),
-    bottom: clamp(position.bottom, edgeOffsetPx, bounds.maxBottom),
+    right: clamp(position.right, overlayConfig.edgeOffsetPx, bounds.maxRight),
+    bottom: clamp(position.bottom, overlayConfig.edgeOffsetPx, bounds.maxBottom),
   };
 }
 
 function getOverlayPositionBounds(): { readonly maxRight: number; readonly maxBottom: number } {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const overlayMaxHeight = viewportHeight * overlayPanelMaxHeightRatio;
+  const overlayMaxHeight = viewportHeight * overlayConfig.panelMaxHeightRatio;
 
   return {
-    maxRight: Math.max(edgeOffsetPx, viewportWidth - overlayPanelWidthPx - edgeOffsetPx),
-    maxBottom: Math.max(edgeOffsetPx, viewportHeight - overlayMaxHeight - edgeOffsetPx),
+    maxRight: Math.max(
+      overlayConfig.edgeOffsetPx,
+      viewportWidth - overlayConfig.panelWidthPx - overlayConfig.edgeOffsetPx,
+    ),
+    maxBottom: Math.max(
+      overlayConfig.edgeOffsetPx,
+      viewportHeight - overlayMaxHeight - overlayConfig.edgeOffsetPx,
+    ),
   };
 }
 
