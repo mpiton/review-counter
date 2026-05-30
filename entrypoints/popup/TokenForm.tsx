@@ -25,7 +25,7 @@ interface StatusIndicatorProps {
 
 const tokenSettingsUrl =
   "https://github.com/settings/tokens/new?scopes=public_repo&description=Vates%20Review%20Counter";
-const revealTokenTimeoutMs = 15_000;
+const REVEAL_TOKEN_TIMEOUT_MS = 15_000;
 
 export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProps) {
   const [token, setToken] = useState("");
@@ -41,7 +41,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
 
     const timeoutId = window.setTimeout(() => {
       setRevealToken(false);
-    }, revealTokenTimeoutMs);
+    }, REVEAL_TOKEN_TIMEOUT_MS);
 
     return () => {
       window.clearTimeout(timeoutId);
