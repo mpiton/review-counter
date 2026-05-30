@@ -6,6 +6,9 @@ export default defineConfig({
     name: "Vates Review Counter",
     description: "Compte les PR ouvertes où les membres Vates sont demandés en review.",
     version: "0.0.0",
+    permissions: ["storage"],
+    host_permissions: ["https://api.github.com/*", "https://github.com/vatesfr/*"],
+    action: { default_popup: "popup/index.html" },
     web_accessible_resources: [
       {
         matches: ["https://github.com/vatesfr/*"],
