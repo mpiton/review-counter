@@ -1,6 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { QueryClientConfig } from "@tanstack/react-query";
+import { Component } from "react";
 import type { PointerEvent } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { browser } from "wxt/browser";
 import type { TeamReviewCounts } from "../../src/domain";
@@ -12,11 +14,13 @@ interface OverlayPosition {
 }
 
 const overlayPositionStorageKey = "vatesReviewCounter.overlayPosition";
+// Default offset follows the design reference: { right: 24, bottom: 24 }.
 const defaultOverlayOffsetPx = 24;
 const defaultPosition: OverlayPosition = {
   right: defaultOverlayOffsetPx,
   bottom: defaultOverlayOffsetPx,
 };
+// Minimum visible gutter kept while clamping persisted and dragged positions.
 const edgeOffsetPx = 8;
 const overlayPanelWidthPx = 320;
 const overlayPanelMaxHeightRatio = 0.7;
@@ -28,16 +32,60 @@ const overlayPanelClassName =
   "pointer-events-auto fixed flex max-h-[70vh] w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
 const overlayThemeClassName =
   "[--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]";
-const queryClientConfig = {} satisfies QueryClientConfig;
+const queryClientConfig = {
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+} satisfies QueryClientConfig;
 
 export function OverlayApp() {
   const [queryClient] = useState(() => new QueryClient(queryClientConfig));
 
   return (
     <QueryClientProvider client={queryClient}>
-      <OverlayShell />
+      <OverlayErrorBoundary>
+        <OverlayShell />
+      </OverlayErrorBoundary>
     </QueryClientProvider>
   );
+}
+
+interface OverlayErrorBoundaryProps {
+  readonly children: ReactNode;
+}
+
+interface OverlayErrorBoundaryState {
+  readonly hasError: boolean;
+}
+
+class OverlayErrorBoundary extends Component<OverlayErrorBoundaryProps, OverlayErrorBoundaryState> {
+  override state: OverlayErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): OverlayErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.error("[Vates Review Counter] Overlay render failed", error, errorInfo);
+  }
+
+  override render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <div
+          className={`${overlayPanelClassName} ${overlayThemeClassName} px-3 py-4 text-[13px]`}
+          role="alert"
+          style={{ right: defaultPosition.right, bottom: defaultPosition.bottom }}
+        >
+          Overlay indisponible.
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function OverlayShell() {
@@ -234,11 +282,12 @@ function usePersistentOverlayPosition(): readonly [
         );
         setIsLoaded(true);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!isActive) {
           return;
         }
 
+        console.warn("[Vates Review Counter] Failed to load overlay position", error);
         setPosition(defaultPosition);
         setIsLoaded(true);
       });
@@ -280,8 +329,10 @@ function isOverlayPosition(value: unknown): value is OverlayPosition {
   return (
     typeof right === "number" &&
     Number.isFinite(right) &&
+    right >= 0 &&
     typeof bottom === "number" &&
-    Number.isFinite(bottom)
+    Number.isFinite(bottom) &&
+    bottom >= 0
   );
 }
 
