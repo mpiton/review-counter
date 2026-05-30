@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: ({ browser }) => ({
     name: "Vates Review Counter",
     description: "Compte les PR ouvertes où les membres Vates sont demandés en review.",
-    version: "0.1.0",
+    version: "0.1.1",
     icons: {
       16: "icons/icon-16.png",
       32: "icons/icon-32.png",

@@ -4,14 +4,14 @@
 
 Upload the Firefox build artifact:
 
-- `.output/vates-review-counter-0.1.0-firefox.zip`
+- `.output/vates-review-counter-0.1.1-firefox.zip`
 
 ## Source Package
 
 Because the extension is built from TypeScript, React, Tailwind, and WXT/Vite, attach the source
 package for AMO review:
 
-- `.output/vates-review-counter-0.1.0-source.zip`
+- `.output/vates-review-counter-0.1.1-source.zip`
 
 Reviewer build instructions:
 
@@ -20,9 +20,13 @@ pnpm install --frozen-lockfile
 pnpm zip:firefox
 ```
 
-The generated add-on package is written to `.output/vates-review-counter-0.1.0-firefox.zip`.
+The generated add-on package is written to `.output/vates-review-counter-0.1.1-firefox.zip`.
 
 Dependencies are restored from the public npm registry through `pnpm` using `pnpm-lock.yaml`.
+
+## Version Notes
+
+Fix opening the configuration popup from the GitHub overlay in Firefox builds.
 
 ## Listing
 
