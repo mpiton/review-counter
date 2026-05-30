@@ -25,6 +25,7 @@ interface RenderedHook {
 }
 
 const renderedHooks: RenderedHook[] = [];
+const WAIT_FOR_TIMEOUT_MS = 1_000;
 
 const initialCounts = {
   frontend: [{ login: "alice", displayName: "Alice", count: 2 }],
@@ -87,6 +88,29 @@ describe("useReviewCounts", () => {
       expect(rendered.current.data).toEqual(refreshedCounts);
     });
     expect(messagingMock.sendMessage).toHaveBeenCalledTimes(2);
+    expect(messagingMock.sendMessage).toHaveBeenNthCalledWith(2, {
+      kind: "FETCH_REVIEW_COUNTS",
+      force: true,
+    });
+  });
+
+  it("does not reject refresh when the forced refetch fails", async () => {
+    messagingMock.sendMessage
+      .mockResolvedValueOnce({ kind: "REVIEW_COUNTS", data: initialCounts })
+      .mockResolvedValueOnce({ kind: "ERROR", reason: "AUTH" });
+
+    const rendered = renderUseReviewCounts();
+
+    await waitFor(() => {
+      expect(rendered.current.status).toBe("success");
+      expect(rendered.current.data).toEqual(initialCounts);
+    });
+
+    await expect(
+      act(async () => {
+        await rendered.current.refresh();
+      }),
+    ).resolves.toBeUndefined();
     expect(messagingMock.sendMessage).toHaveBeenNthCalledWith(2, {
       kind: "FETCH_REVIEW_COUNTS",
       force: true,
@@ -162,7 +186,7 @@ function createTestQueryClient(): QueryClient {
 }
 
 async function waitFor(assertion: () => void): Promise<void> {
-  const timeoutAt = Date.now() + 1_000;
+  const timeoutAt = Date.now() + WAIT_FOR_TIMEOUT_MS;
   let lastError: unknown;
 
   while (Date.now() < timeoutAt) {

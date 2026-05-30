@@ -31,7 +31,7 @@ importers:
         specifier: 1.2.2
         version: 1.2.2(vite@8.0.14(@types/node@25.9.1)(esbuild@0.27.7)(jiti@2.7.0))(wxt@0.20.26(@types/node@25.9.1)(jiti@2.7.0)(rolldown@1.0.2))
       happy-dom:
-        specifier: ^20.9.0
+        specifier: 20.9.0
         version: 20.9.0
       oxfmt:
         specifier: 0.52.0

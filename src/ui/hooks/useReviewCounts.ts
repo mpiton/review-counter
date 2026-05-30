@@ -4,15 +4,23 @@ import type { TeamReviewCounts } from "../../domain";
 import { sendMessage } from "../../messaging";
 import type { MessageErrorReason, Request } from "../../messaging";
 
+/** Stable React Query cache key for review count data. */
 export const REVIEW_COUNTS_QUERY_KEY: readonly ["reviewCounts"] = ["reviewCounts"];
+
+/** UI query freshness window, aligned with the background service worker cache TTL. */
 export const REVIEW_COUNTS_STALE_TIME_MS = 60_000;
 
 const REVIEW_COUNTS_RETRY_LIMIT = 2;
 
 type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_COUNTS" }>;
 
+/**
+ * UI-facing query status. `loading` deliberately wraps TanStack Query's `pending` status so
+ * overlay components can use the product language from the design spec.
+ */
 export type ReviewCountsStatus = "loading" | "error" | "success";
 
+/** Review count state and commands exposed to overlay components. */
 export interface UseReviewCountsResult {
   readonly data: TeamReviewCounts | undefined;
   readonly error: ReviewCountsError | null;
@@ -20,6 +28,7 @@ export interface UseReviewCountsResult {
   readonly status: ReviewCountsStatus;
 }
 
+/** Typed review count failure that preserves the background messaging error reason. */
 export class ReviewCountsError extends Error {
   readonly reason: MessageErrorReason;
 
@@ -37,13 +46,18 @@ const reviewCountsErrorMessages: Record<MessageErrorReason, string> = {
   RATE_LIMIT: "GitHub rate limit reached.",
 };
 
+const reviewCountsQueryOptions = {
+  queryKey: REVIEW_COUNTS_QUERY_KEY,
+  retry: shouldRetryReviewCounts,
+  staleTime: REVIEW_COUNTS_STALE_TIME_MS,
+} as const;
+
+/** Fetch, cache, and refresh aggregated review counts through background messaging. */
 export function useReviewCounts(): UseReviewCountsResult {
   const queryClient = useQueryClient();
   const query = useQuery<TeamReviewCounts, ReviewCountsError>({
-    queryKey: REVIEW_COUNTS_QUERY_KEY,
+    ...reviewCountsQueryOptions,
     queryFn: () => fetchReviewCounts(false),
-    retry: shouldRetryReviewCounts,
-    staleTime: REVIEW_COUNTS_STALE_TIME_MS,
   });
 
   const refresh = useCallback(async () => {
@@ -51,12 +65,15 @@ export function useReviewCounts(): UseReviewCountsResult {
       queryKey: REVIEW_COUNTS_QUERY_KEY,
       refetchType: "none",
     });
-    await queryClient.fetchQuery<TeamReviewCounts, ReviewCountsError>({
-      queryKey: REVIEW_COUNTS_QUERY_KEY,
-      queryFn: () => fetchReviewCounts(true),
-      retry: shouldRetryReviewCounts,
-      staleTime: REVIEW_COUNTS_STALE_TIME_MS,
-    });
+
+    try {
+      await queryClient.fetchQuery<TeamReviewCounts, ReviewCountsError>({
+        ...reviewCountsQueryOptions,
+        queryFn: () => fetchReviewCounts(true),
+      });
+    } catch {
+      // The query cache already exposes the failure through status/error.
+    }
   }, [queryClient]);
 
   return {
