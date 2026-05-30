@@ -1,12 +1,17 @@
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
+import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import styles from "../../src/ui/styles.css?inline";
 import { OverlayApp } from "./App";
 
-const rootId = "vates-review-counter-root";
-const targetHost = "github.com";
-const targetOwner = "vatesfr";
-const targetRepo = "xen-orchestra";
+const targetRepository = {
+  host: "github.com",
+  owner: "vatesfr",
+  repo: "xen-orchestra",
+} as const;
+const overlayHostId = "vates-review-counter-root";
+const overlayHostZIndex = "2147483647";
+const shadowHostStyles = ":host{all:initial;color-scheme:normal;font-size:16px;}";
 
 let reactRoot: Root | null = null;
 let hostElement: HTMLDivElement | null = null;
@@ -18,55 +23,76 @@ interface RepositoryLocation {
 
 export default defineContentScript({
   matches: ["https://github.com/vatesfr/*"],
-  main() {
+  main(ctx: ContentScriptContext) {
     syncOverlayMount();
 
-    window.addEventListener("popstate", syncOverlayMount);
-    window.addEventListener("hashchange", syncOverlayMount);
-    document.addEventListener("turbo:load", syncOverlayMount);
-    document.addEventListener("turbo:render", syncOverlayMount);
-    window.setInterval(syncOverlayMount, 1_000);
+    ctx.addEventListener(window, "wxt:locationchange", syncOverlayMount);
+    ctx.addEventListener(window, "hashchange", syncOverlayMount);
+    ctx.addEventListener(document, "turbo:load", syncOverlayMount);
+    ctx.addEventListener(document, "turbo:render", syncOverlayMount);
+    ctx.onInvalidated(unmountOverlay);
   },
 });
 
 export function isTargetRepositoryUrl(url: RepositoryLocation): boolean {
-  const [owner, repo] = url.pathname.split("/").filter(Boolean);
+  const segments = url.pathname.split("/").filter(Boolean);
+
+  if (segments.length < 2) {
+    return false;
+  }
+
+  const owner = segments[0];
+  const repo = segments[1];
+
+  if (owner === undefined || repo === undefined) {
+    return false;
+  }
 
   return (
-    url.hostname === targetHost &&
-    owner?.toLowerCase() === targetOwner &&
-    repo?.toLowerCase() === targetRepo
+    url.hostname.toLowerCase() === targetRepository.host &&
+    owner.toLowerCase() === targetRepository.owner &&
+    repo.toLowerCase() === targetRepository.repo
   );
 }
 
 function syncOverlayMount(): void {
-  if (isTargetRepositoryUrl(window.location)) {
-    mountOverlay();
+  try {
+    if (isTargetRepositoryUrl(window.location)) {
+      mountOverlay();
+      return;
+    }
+
+    unmountOverlay();
+  } catch (error) {
+    unmountOverlay();
+    console.error("[Vates Review Counter] Failed to sync overlay mount", error);
+  }
+}
+
+function mountOverlay(): void {
+  const existingHost = document.getElementById(overlayHostId);
+
+  if (reactRoot !== null && existingHost === hostElement) {
     return;
   }
 
   unmountOverlay();
-}
-
-function mountOverlay(): void {
-  if (reactRoot !== null) {
-    return;
-  }
-
-  document.getElementById(rootId)?.remove();
+  existingHost?.remove();
 
   const host = document.createElement("div");
-  host.id = rootId;
+  host.id = overlayHostId;
   host.style.display = "block";
   host.style.position = "fixed";
   host.style.inset = "0";
   host.style.pointerEvents = "none";
-  host.style.zIndex = "2147483647";
+  host.style.zIndex = overlayHostZIndex;
   document.documentElement.append(host);
 
+  // The project task requires an open shadow root for overlay inspection and future UI tests.
   const shadowRoot = host.attachShadow({ mode: "open" });
   const styleElement = document.createElement("style");
-  styleElement.textContent = `:host{all:initial;color-scheme:normal;}${styles}`;
+  styleElement.append(document.createTextNode(shadowHostStyles));
+  styleElement.append(document.createTextNode(styles));
   shadowRoot.append(styleElement);
 
   const appRoot = document.createElement("div");

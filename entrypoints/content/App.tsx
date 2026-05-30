@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { QueryClientConfig } from "@tanstack/react-query";
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { browser } from "wxt/browser";
@@ -11,12 +12,26 @@ interface OverlayPosition {
 }
 
 const overlayPositionStorageKey = "vatesReviewCounter.overlayPosition";
-const defaultPosition: OverlayPosition = { right: 24, bottom: 24 };
-const edgeOffset = 8;
+const defaultOverlayOffsetPx = 24;
+const defaultPosition: OverlayPosition = {
+  right: defaultOverlayOffsetPx,
+  bottom: defaultOverlayOffsetPx,
+};
+const edgeOffsetPx = 8;
+const overlayPanelWidthPx = 320;
+const overlayPanelMaxHeightRatio = 0.7;
+const planetButtonSizePx = 52;
+const planetImageSizePx = 34;
+const headerPlanetImageSizePx = 20;
 const planetImageUrl = "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png";
+const overlayPanelClassName =
+  "pointer-events-auto fixed flex max-h-[70vh] w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
+const overlayThemeClassName =
+  "[--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]";
+const queryClientConfig = {} satisfies QueryClientConfig;
 
 export function OverlayApp() {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient(queryClientConfig));
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -48,7 +63,7 @@ function OverlayShell() {
   return (
     <section
       aria-label="Vates Reviews"
-      className="pointer-events-auto fixed flex max-h-[70vh] w-[320px] flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl [--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]"
+      className={`${overlayPanelClassName} ${overlayThemeClassName}`}
       role="dialog"
       style={{ right: position.right, bottom: position.bottom }}
     >
@@ -121,9 +136,9 @@ function OverlayHeader({
           alt=""
           className={isLoading ? "animate-spin" : ""}
           draggable="false"
-          height="20"
+          height={headerPlanetImageSizePx}
           src={planetImageUrl}
-          width="20"
+          width={headerPlanetImageSizePx}
         />
       </span>
       <span className="text-[13px] font-semibold">Vates Reviews</span>
@@ -165,9 +180,14 @@ function PlanetButton({
   return (
     <button
       aria-label="Ouvrir Vates Reviews"
-      className="pointer-events-auto fixed grid h-[52px] w-[52px] place-items-center rounded-full border border-[#33356a] bg-[#1a1b38] shadow-2xl transition-transform hover:scale-105 active:scale-95"
+      className="pointer-events-auto fixed grid place-items-center rounded-full border border-[#33356a] bg-[#1a1b38] shadow-2xl transition-transform hover:scale-105 active:scale-95"
       onClick={onClick}
-      style={{ right: position.right, bottom: position.bottom }}
+      style={{
+        right: position.right,
+        bottom: position.bottom,
+        width: planetButtonSizePx,
+        height: planetButtonSizePx,
+      }}
       title="Ouvrir Vates Reviews"
       type="button"
     >
@@ -175,9 +195,9 @@ function PlanetButton({
         alt=""
         className={isLoading ? "animate-spin" : ""}
         draggable="false"
-        height="34"
+        height={planetImageSizePx}
         src={planetImageUrl}
-        width="34"
+        width={planetImageSizePx}
       />
       {total > 0 && (
         <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full border-2 border-[#1a1b38] bg-[#be1622] px-1 text-[11px] font-semibold tabular-nums text-white">
@@ -212,6 +232,14 @@ function usePersistentOverlayPosition(): readonly [
         setPosition(
           isOverlayPosition(storedPosition) ? normalizePosition(storedPosition) : defaultPosition,
         );
+        setIsLoaded(true);
+      })
+      .catch(() => {
+        if (!isActive) {
+          return;
+        }
+
+        setPosition(defaultPosition);
         setIsLoaded(true);
       });
 
@@ -258,8 +286,25 @@ function isOverlayPosition(value: unknown): value is OverlayPosition {
 }
 
 function normalizePosition(position: OverlayPosition): OverlayPosition {
+  const bounds = getOverlayPositionBounds();
+
   return {
-    right: Math.max(edgeOffset, position.right),
-    bottom: Math.max(edgeOffset, position.bottom),
+    right: clamp(position.right, edgeOffsetPx, bounds.maxRight),
+    bottom: clamp(position.bottom, edgeOffsetPx, bounds.maxBottom),
   };
+}
+
+function getOverlayPositionBounds(): { readonly maxRight: number; readonly maxBottom: number } {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const overlayMaxHeight = viewportHeight * overlayPanelMaxHeightRatio;
+
+  return {
+    maxRight: Math.max(edgeOffsetPx, viewportWidth - overlayPanelWidthPx - edgeOffsetPx),
+    maxBottom: Math.max(edgeOffsetPx, viewportHeight - overlayMaxHeight - edgeOffsetPx),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
