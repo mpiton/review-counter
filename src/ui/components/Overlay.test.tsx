@@ -96,6 +96,29 @@ describe("overlay components", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("is focusable and exposes accessible labels for icon controls", () => {
+    const { container } = renderOverlay({ state: "ok" });
+    const dialog = container.querySelector("[role='dialog']");
+
+    expect(dialog?.getAttribute("tabindex")).toBe("0");
+    expect(getButton(container, "Rafraîchir")).not.toBeNull();
+    expect(getButton(container, "Fermer (Esc)")).not.toBeNull();
+  });
+
+  it("keeps badge values readable without relying only on color", () => {
+    const { container } = renderOverlay({ state: "ok" });
+    const hotBadge = container.querySelector("[aria-label='4 reviews en attente, charge élevée']");
+    const regularBadge = container.querySelector("[aria-label='2 reviews en attente']");
+    const zeroBadge = container.querySelector("[aria-label='Aucune review en attente']");
+
+    expect(hotBadge?.textContent).toBe("4");
+    expect(hotBadge?.className.toString()).toContain("bg-[var(--badge-hot)]");
+    expect(hotBadge?.className.toString()).toContain("text-[#fffce4]");
+    expect(regularBadge?.textContent).toBe("2");
+    expect(regularBadge?.className.toString()).toContain("text-[#1a1b38]");
+    expect(zeroBadge?.textContent).toBe("0");
+  });
+
   it("shows a refresh spinner while refresh is in progress", async () => {
     const onRefresh = vi.fn(async () => undefined);
     const { container } = renderOverlay({ onRefresh, state: "ok" });

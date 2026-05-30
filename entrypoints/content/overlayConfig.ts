@@ -15,8 +15,7 @@ export const defaultOverlayPosition: OverlayPosition = {
   bottom: overlayConfig.defaultOffsetPx,
 };
 
-export const overlayThemeClassName =
-  "[--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]";
+export const overlayThemeClassName = "font-sans";
 
 export const fallbackPanelClassName =
   "pointer-events-auto fixed overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";

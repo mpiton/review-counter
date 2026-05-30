@@ -12,12 +12,12 @@ export const statusViews: Record<ConnectionStatus, StatusView> = {
   connected: {
     dotClassName: "border-[var(--accent-be)] bg-[var(--accent-be)]",
     label: "connecté",
-    textClassName: "text-[var(--accent-be)]",
+    textClassName: "text-[var(--fg)]",
   },
   error: {
     dotClassName: "border-[var(--badge-hot)] bg-[var(--badge-hot)]",
     label: "échec",
-    textClassName: "text-[var(--badge-hot)]",
+    textClassName: "text-[var(--fg)]",
   },
   idle: {
     dotClassName: "border-[var(--fg-muted)] bg-transparent",
@@ -27,7 +27,7 @@ export const statusViews: Record<ConnectionStatus, StatusView> = {
   testing: {
     dotClassName: "border-[#d29922] bg-[#d29922]",
     label: "vérification…",
-    textClassName: "text-[#d29922]",
+    textClassName: "text-[var(--fg)]",
   },
 };
 

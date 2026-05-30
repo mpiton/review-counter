@@ -1,7 +1,9 @@
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
+import { browser } from "wxt/browser";
 import type { ContentScriptContext } from "wxt/utils/content-script-context";
 import styles from "../../src/ui/styles.css?inline";
+import { createFontFaceCss, createThemeCss } from "../../src/ui/runtimeStyles";
 import { OverlayApp } from "./App";
 
 const targetRepository = {
@@ -11,7 +13,8 @@ const targetRepository = {
 } as const;
 const overlayHostId = "vates-review-counter-root";
 const overlayHostZIndex = "2147483647";
-const shadowHostStyles = ":host{all:initial;color-scheme:normal;font-size:16px;}";
+const shadowHostStyles = `${createFontFaceCss(resolveExtensionAssetUrl)}
+${createThemeCss(":host", "all:initial;")}`;
 
 let reactRoot: Root | null = null;
 let hostElement: HTMLDivElement | null = null;
@@ -108,4 +111,8 @@ function unmountOverlay(): void {
   hostElement?.remove();
   reactRoot = null;
   hostElement = null;
+}
+
+function resolveExtensionAssetUrl(path: string): string {
+  return new URL(path, browser.runtime.getURL("/")).toString();
 }
