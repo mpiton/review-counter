@@ -8,7 +8,12 @@ interface PlanetButtonProps {
   readonly total: number;
 }
 
-const alertStates = new Set<OverlayStateKind>(["no-token", "auth-error", "network-error"]);
+const alertStates = new Set<OverlayStateKind>([
+  "no-token",
+  "auth-error",
+  "rate-limit",
+  "network-error",
+]);
 
 export function PlanetButton({
   onClick,

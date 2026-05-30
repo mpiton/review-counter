@@ -12,6 +12,7 @@ import { useReviewCounts } from "../../src/ui/hooks/useReviewCounts";
 import {
   defaultOverlayPosition,
   fallbackPanelClassName,
+  fallbackPanelStyle,
   overlayConfig,
   overlayThemeClassName,
   overlayUnavailableLabel,
@@ -62,7 +63,11 @@ class OverlayErrorBoundary extends Component<OverlayErrorBoundaryProps, OverlayE
         <div
           className={`${fallbackPanelClassName} ${overlayThemeClassName} px-3 py-4 text-[13px]`}
           role="alert"
-          style={{ right: defaultOverlayPosition.right, bottom: defaultOverlayPosition.bottom }}
+          style={{
+            ...fallbackPanelStyle,
+            right: defaultOverlayPosition.right,
+            bottom: defaultOverlayPosition.bottom,
+          }}
         >
           {overlayUnavailableLabel}
         </div>
@@ -124,7 +129,7 @@ function usePersistentOverlayPosition(): readonly [
   (position: OverlayPosition) => void,
 ] {
   const [isLoaded, setIsLoaded] = useState(false);
-  const [position, setPosition] = useState(defaultOverlayPosition);
+  const [position, setPosition] = useState(() => normalizePosition(defaultOverlayPosition));
   const updatePosition = useCallback((nextPosition: OverlayPosition) => {
     setPosition(normalizePosition(nextPosition));
   }, []);
@@ -143,7 +148,7 @@ function usePersistentOverlayPosition(): readonly [
         setPosition(
           isOverlayPosition(storedPosition)
             ? normalizePosition(storedPosition)
-            : defaultOverlayPosition,
+            : normalizePosition(defaultOverlayPosition),
         );
         setIsLoaded(true);
       })
@@ -153,7 +158,7 @@ function usePersistentOverlayPosition(): readonly [
         }
 
         console.warn("[Vates Review Counter] Failed to load overlay position", error);
-        setPosition(defaultOverlayPosition);
+        setPosition(normalizePosition(defaultOverlayPosition));
         setIsLoaded(true);
       });
 

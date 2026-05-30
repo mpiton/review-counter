@@ -19,6 +19,11 @@ export const overlayThemeClassName =
   "[--accent-be:#31a88c] [--accent-fe:#8f82ff] [--badge-hot:#be1622] [--bg:#1a1b38] [--border:#33356a] [--fg-muted:#9b9cc4] [--fg:#fffce4] [--surface:#25274c]";
 
 export const fallbackPanelClassName =
-  "pointer-events-auto fixed max-h-[70vh] w-[320px] overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
+  "pointer-events-auto fixed overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--fg)] shadow-2xl";
+
+export const fallbackPanelStyle = {
+  maxHeight: `${overlayConfig.panelMaxHeightRatio * 100}vh`,
+  width: overlayConfig.panelWidthPx,
+} as const;
 
 export const overlayUnavailableLabel = "Overlay indisponible.";

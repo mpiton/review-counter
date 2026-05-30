@@ -36,5 +36,5 @@ function formatFooterText(
 }
 
 function formatPullRequestCount(count: number): string {
-  return count <= 1 ? `${count} PR ouverte` : `${count} PR ouvertes`;
+  return count === 1 ? `${count} PR ouverte` : `${count} PR ouvertes`;
 }

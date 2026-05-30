@@ -1,5 +1,5 @@
 import type { PointerEvent } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { TeamReviewCounts } from "../../domain";
 import { LoadingSections } from "./LoadingSections";
 import { OverlayFooter } from "./OverlayFooter";
@@ -43,6 +43,7 @@ export function Overlay({
   state,
   threshold = 4,
 }: OverlayProps) {
+  const dragCleanupRef = useRef<(() => void) | null>(null);
   const [isRefreshing, refresh] = useRefreshSpinner(onRefresh, refreshSpinnerResetDelayMs);
   const degradedState = getDegradedState(state);
   const isLoading = state === "loading";
@@ -58,6 +59,13 @@ export function Overlay({
 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
+
+  useEffect(() => {
+    return () => {
+      dragCleanupRef.current?.();
+      dragCleanupRef.current = null;
+    };
+  }, []);
 
   function handlePointerDown(event: PointerEvent<HTMLDivElement>): void {
     const target = event.target;
@@ -76,11 +84,18 @@ export function Overlay({
       });
     }
 
-    function stop(): void {
+    function cleanup(): void {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
+      dragCleanupRef.current = null;
     }
 
+    function stop(): void {
+      cleanup();
+    }
+
+    dragCleanupRef.current?.();
+    dragCleanupRef.current = cleanup;
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop);
   }

@@ -50,6 +50,15 @@ describe("overlay components", () => {
     expect(container.querySelector("[title='Charge élevée']")?.className).toContain("badge-hot");
   });
 
+  it("renders zero open pull requests with plural wording", () => {
+    const { container } = renderOverlay({
+      openPullRequestCount: 0,
+      state: "empty",
+    });
+
+    expect(container.textContent).toContain("0 PR ouvertes");
+  });
+
   it.each([
     ["empty", "Aucune PR ouverte"],
     ["no-token", "Configurez votre token GitHub"],
@@ -138,6 +147,20 @@ describe("overlay components", () => {
           planetImageUrl={planetImageUrl}
           position={position}
           state="auth-error"
+          total={0}
+        />,
+      );
+    });
+
+    expect(hasElementWithClass(container, "bg-[#be1622]")).toBe(true);
+
+    act(() => {
+      root.render(
+        <PlanetButton
+          onClick={() => undefined}
+          planetImageUrl={planetImageUrl}
+          position={position}
+          state="rate-limit"
           total={0}
         />,
       );
