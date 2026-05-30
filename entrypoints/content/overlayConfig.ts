@@ -1,3 +1,4 @@
+import { resolveExtensionAssetUrl } from "../../src/ui/runtimeAsset";
 import type { OverlayPosition } from "../../src/ui/components";
 
 export const overlayConfig = {
@@ -6,7 +7,7 @@ export const overlayConfig = {
   edgeOffsetPx: 8,
   panelWidthPx: 320,
   panelMaxHeightRatio: 0.7,
-  planetImageUrl: "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png",
+  planetImageUrl: resolveExtensionAssetUrl("icons/vates-planet.png"),
   threshold: 4,
 } as const;
 

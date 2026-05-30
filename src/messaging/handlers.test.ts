@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PullRequestReviewRequests } from "../domain/aggregate";
 import type { TeamConfig, TeamReviewCounts } from "../domain/types";
 import type { ErrorReason, Result } from "../github";
@@ -27,6 +27,35 @@ describe("background message handlers", () => {
       handleMessage({ kind: "SET_TOKEN", token: "updated-secret-token" }),
     ).resolves.toEqual({ kind: "OK" });
     expect(dependencies.setTokenCalls).toEqual(["updated-secret-token"]);
+  });
+
+  it("opens the configuration popup from the background context", async () => {
+    const dependencies = createTestDependencies({ token: null });
+    const handleMessage = createMessageHandler(dependencies.options);
+
+    await expect(handleMessage({ kind: "OPEN_CONFIGURATION" })).resolves.toEqual({ kind: "OK" });
+    expect(dependencies.openConfigurationCalls).toBe(1);
+  });
+
+  it("maps configuration popup open failures to UNKNOWN errors", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const openConfigurationError = new Error("blocked");
+    const dependencies = createTestDependencies({
+      openConfigurationError,
+      token: null,
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+
+    await expect(handleMessage({ kind: "OPEN_CONFIGURATION" })).resolves.toEqual({
+      kind: "ERROR",
+      reason: "UNKNOWN",
+    });
+    expect(dependencies.openConfigurationCalls).toBe(1);
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[Vates Review Counter] Failed to open configuration popup",
+      openConfigurationError,
+    );
+    consoleWarn.mockRestore();
   });
 
   it("returns NO_TOKEN and skips GitHub fetching when no token is stored", async () => {
@@ -170,8 +199,10 @@ describe("background message handlers", () => {
 function createTestDependencies(options: {
   readonly token: string | null;
   readonly fetchResults?: readonly Result<readonly PullRequestReviewRequests[], ErrorReason>[];
+  readonly openConfigurationError?: Error;
 }): {
   readonly fetchCalls: readonly string[];
+  readonly openConfigurationCalls: number;
   readonly options: MessageHandlerOptions;
   readonly setNow: (nextNow: number) => void;
   readonly setTokenCalls: readonly string[];
@@ -179,6 +210,7 @@ function createTestDependencies(options: {
   const fetchResults = [...(options.fetchResults ?? [])];
   const fetchCalls: string[] = [];
   const setTokenCalls: string[] = [];
+  let openConfigurationCalls = 0;
   let currentToken = options.token;
   let currentNow = 0;
 
@@ -196,10 +228,20 @@ function createTestDependencies(options: {
 
   return {
     fetchCalls,
+    get openConfigurationCalls() {
+      return openConfigurationCalls;
+    },
     options: {
       fetchOpenPRs,
       getToken: async () => currentToken,
       now: () => currentNow,
+      openConfigurationPopup: async () => {
+        openConfigurationCalls += 1;
+
+        if (options.openConfigurationError !== undefined) {
+          throw options.openConfigurationError;
+        }
+      },
       setToken: async (token) => {
         currentToken = token;
         setTokenCalls.push(token);

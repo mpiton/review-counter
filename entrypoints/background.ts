@@ -1,14 +1,35 @@
 import { browser } from "wxt/browser";
+import type { Browser } from "wxt/browser";
 import { createMessageHandler } from "../src/messaging/handlers";
 import type { Request, Response } from "../src/messaging/protocol";
 
-const handleMessage = createMessageHandler();
+const handleMessage = createMessageHandler({
+  openConfigurationPopup,
+});
 
 export default defineBackground({
   type: "module",
   main() {
-    browser.runtime.onMessage.addListener((message: Request): Promise<Response> => {
-      return handleMessage(message);
-    });
+    browser.runtime.onMessage.addListener(handleRuntimeMessage);
   },
 });
+
+function handleRuntimeMessage(
+  message: Request,
+  _sender: Browser.runtime.MessageSender,
+  sendResponse: (response?: Response) => void,
+): true {
+  void handleMessage(message)
+    .then((response) => {
+      sendResponse(response);
+    })
+    .catch(() => {
+      sendResponse({ kind: "ERROR", reason: "NETWORK" });
+    });
+
+  return true;
+}
+
+async function openConfigurationPopup(): Promise<void> {
+  await browser.action.openPopup();
+}

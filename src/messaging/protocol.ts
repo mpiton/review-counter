@@ -14,12 +14,14 @@ import type { TeamReviewCounts } from "../domain";
  * - `RATE_LIMIT`: GitHub rate limiting prevented the request; callers should keep existing data
  *   visible and allow a later retry.
  * - `NETWORK`: transport or unexpected payload failure; callers should show a retryable error.
+ * - `UNKNOWN`: non-transport background failure without a more specific user-facing category.
  */
-export type MessageErrorReason = "NO_TOKEN" | "AUTH" | "RATE_LIMIT" | "NETWORK";
+export type MessageErrorReason = "NO_TOKEN" | "AUTH" | "RATE_LIMIT" | "NETWORK" | "UNKNOWN";
 
 type GetTokenRequest = { readonly kind: "GET_TOKEN" };
 type SetTokenRequest = { readonly kind: "SET_TOKEN"; readonly token: string };
 type FetchReviewCountsRequest = { readonly kind: "FETCH_REVIEW_COUNTS"; readonly force?: boolean };
+type OpenConfigurationRequest = { readonly kind: "OPEN_CONFIGURATION" };
 
 /**
  * Metadata attached to review count responses for UI cache freshness and scan context.
@@ -43,7 +45,11 @@ type ErrorResponse = { readonly kind: "ERROR"; readonly reason: MessageErrorReas
 /**
  * Messages sent by popup or content contexts to the background service worker.
  */
-export type Request = GetTokenRequest | SetTokenRequest | FetchReviewCountsRequest;
+export type Request =
+  | GetTokenRequest
+  | SetTokenRequest
+  | FetchReviewCountsRequest
+  | OpenConfigurationRequest;
 
 /**
  * Messages returned by the background service worker to extension callers.
@@ -56,7 +62,9 @@ type ResponseFor<TRequest extends Request> = TRequest extends GetTokenRequest
     ? OkResponse | ErrorResponse
     : TRequest extends FetchReviewCountsRequest
       ? ReviewCountsResponse | ErrorResponse
-      : Response;
+      : TRequest extends OpenConfigurationRequest
+        ? OkResponse | ErrorResponse
+        : Response;
 
 /**
  * Send a typed extension request through the browser runtime messaging channel.

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { browser } from "wxt/browser";
 import type { TeamReviewCounts } from "../../src/domain";
 import type { MessageErrorReason } from "../../src/messaging";
+import { sendMessage } from "../../src/messaging";
 import { Overlay, PlanetButton } from "../../src/ui/components";
 import type { OverlayPosition, OverlayStateKind } from "../../src/ui/components";
 import { useReviewCounts } from "../../src/ui/hooks/useReviewCounts";
@@ -90,8 +91,15 @@ function OverlayShell() {
     reviewCounts.meta?.openPullRequestCount,
   );
   const openConfiguration = useCallback(() => {
-    const popupUrl = browser.runtime.getURL("/popup.html");
-    window.open(popupUrl, "_blank", "noopener,noreferrer");
+    void sendMessage({ kind: "OPEN_CONFIGURATION" })
+      .then((response) => {
+        if (response.kind === "ERROR") {
+          console.warn("[Vates Review Counter] Failed to open configuration", response.reason);
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn("[Vates Review Counter] Failed to open configuration", error);
+      });
   }, []);
 
   if (!isOpen) {
@@ -219,6 +227,7 @@ function getErrorOverlayState(reason: MessageErrorReason | null): OverlayStateKi
     case "RATE_LIMIT":
       return "rate-limit";
     case "NETWORK":
+    case "UNKNOWN":
     case null:
       return "network-error";
   }
