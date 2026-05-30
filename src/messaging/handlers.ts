@@ -7,13 +7,22 @@ import type { ErrorReason, NormalizedPRs, Result } from "../github";
 import { getToken as defaultGetToken, setToken as defaultSetToken } from "../storage";
 import type { Request, Response } from "./protocol";
 
+/** Time window where background review counts can be served without refetching GitHub. */
 export const REVIEW_COUNTS_CACHE_TTL_MS = 60_000;
 
+/** Reads the locally stored GitHub token from the background context. */
 export type GetStoredToken = () => Promise<string | null>;
+
+/** Persists a GitHub token from the popup through background-owned storage. */
 export type SetStoredToken = (token: string) => Promise<void>;
+
+/** Fetches normalized open pull requests with their requested reviewers from GitHub. */
 export type FetchOpenPullRequests = (token: string) => Promise<Result<NormalizedPRs, ErrorReason>>;
+
+/** Handles one typed extension request and returns its typed response. */
 export type MessageHandler = (request: Request) => Promise<Response>;
 
+/** Dependencies injected by tests; production uses the background-safe defaults. */
 export interface MessageHandlerOptions {
   readonly fetchOpenPRs?: FetchOpenPullRequests;
   readonly getToken?: GetStoredToken;
@@ -37,6 +46,9 @@ interface ReviewCountsCacheEntry {
   readonly fetchedAt: number;
 }
 
+type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_COUNTS" }>;
+
+/** Create the background message router with an in-memory review counts cache. */
 export function createMessageHandler(options: MessageHandlerOptions = {}): MessageHandler {
   const dependencies = createDependencies(options);
   let cache: ReviewCountsCacheEntry | null = null;
@@ -53,16 +65,8 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
         return { kind: "OK" };
 
       case "FETCH_REVIEW_COUNTS":
-        if (
-          request.force !== true &&
-          cache !== null &&
-          isCacheFresh(cache, dependencies.now(), dependencies.ttlMs)
-        ) {
+        if (shouldServeCachedReviewCounts(request, cache, dependencies)) {
           return { kind: "REVIEW_COUNTS", data: cache.data };
-        }
-
-        if (request.force === true) {
-          cache = null;
         }
 
         return fetchReviewCounts(dependencies, (entry) => {
@@ -70,6 +74,22 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
         });
     }
   };
+}
+
+function shouldServeCachedReviewCounts(
+  request: FetchReviewCountsRequest,
+  cache: ReviewCountsCacheEntry | null,
+  dependencies: MessageHandlerDependencies,
+): cache is ReviewCountsCacheEntry {
+  if (request.force === true) {
+    return false;
+  }
+
+  if (cache === null) {
+    return false;
+  }
+
+  return isCacheFresh(cache, dependencies.now(), dependencies.ttlMs);
 }
 
 function createDependencies(options: MessageHandlerOptions): MessageHandlerDependencies {

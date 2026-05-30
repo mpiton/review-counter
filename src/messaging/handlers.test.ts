@@ -103,14 +103,10 @@ describe("background message handlers", () => {
     expect(dependencies.fetchCalls).toEqual(["secret-token", "secret-token"]);
   });
 
-  it("invalidates cached review counts before a forced refetch", async () => {
+  it("preserves cached review counts when a forced refetch fails", async () => {
     const dependencies = createTestDependencies({
       token: "secret-token",
-      fetchResults: [
-        okResult([{ reviewRequests: [{ login: "alice" }] }]),
-        errorResult("NETWORK"),
-        okResult([{ reviewRequests: [{ login: "bob" }] }]),
-      ],
+      fetchResults: [okResult([{ reviewRequests: [{ login: "alice" }] }]), errorResult("NETWORK")],
     });
     const handleMessage = createMessageHandler(dependencies.options);
 
@@ -121,11 +117,12 @@ describe("background message handlers", () => {
       reason: "NETWORK",
     });
 
+    dependencies.setNow(cacheTtlMs - 1);
     await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject({
       kind: "REVIEW_COUNTS",
-      data: { frontend: [{ count: 0 }], backend: [{ count: 1 }], others: [] },
+      data: { frontend: [{ count: 1 }], backend: [{ count: 0 }], others: [] },
     });
-    expect(dependencies.fetchCalls).toEqual(["secret-token", "secret-token", "secret-token"]);
+    expect(dependencies.fetchCalls).toEqual(["secret-token", "secret-token"]);
   });
 
   it("refetches when the cached review counts are stale", async () => {
