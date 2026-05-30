@@ -8,6 +8,7 @@ export default defineConfig({
       "src/github/**/*.{test,spec}.ts",
       "src/messaging/**/*.{test,spec}.ts",
       "src/storage/**/*.{test,spec}.ts",
+      "src/ui/**/*.{test,spec}.{ts,tsx}",
     ],
     passWithNoTests: true,
     restoreMocks: true,
