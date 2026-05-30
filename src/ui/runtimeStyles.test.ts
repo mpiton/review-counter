@@ -42,12 +42,14 @@ describe("runtime UI styles", () => {
       [darkThemeTokens["--fg"], darkThemeTokens["--bg"]],
       [darkThemeTokens["--fg-muted"], darkThemeTokens["--bg"]],
       [darkThemeTokens["--fg"], darkThemeTokens["--surface"]],
+      [darkThemeTokens["--fg-subtle"], darkThemeTokens["--surface"]],
       [lightThemeTokens["--fg"], lightThemeTokens["--bg"]],
       [lightThemeTokens["--fg-muted"], lightThemeTokens["--bg"]],
       [lightThemeTokens["--fg"], lightThemeTokens["--surface"]],
-      ["#1a1b38", darkThemeTokens["--accent-fe"]],
-      ["#1a1b38", darkThemeTokens["--accent-be"]],
-      ["#fffce4", darkThemeTokens["--badge-hot"]],
+      [lightThemeTokens["--fg-subtle"], lightThemeTokens["--surface"]],
+      [darkThemeTokens["--on-accent"], darkThemeTokens["--accent-fe"]],
+      [darkThemeTokens["--on-accent"], darkThemeTokens["--accent-be"]],
+      [darkThemeTokens["--on-badge-hot"], darkThemeTokens["--badge-hot"]],
     ] as const;
 
     for (const [foreground, background] of pairs) {

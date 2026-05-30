@@ -7,12 +7,13 @@ interface CountBadgeProps {
 }
 
 const accentBadgeClassNames: Record<SectionTone, string> = {
-  backend: "border-[var(--accent-be)] bg-[var(--accent-be)] text-[#1a1b38]",
-  frontend: "border-[var(--accent-fe)] bg-[var(--accent-fe)] text-[#1a1b38]",
+  backend: "border-[var(--accent-be)] bg-[var(--accent-be)] text-[var(--on-accent)]",
+  frontend: "border-[var(--accent-fe)] bg-[var(--accent-fe)] text-[var(--on-accent)]",
   muted: "border-[var(--fg-muted)] bg-[var(--surface)] text-[var(--fg)]",
 };
 
-const hotBadgeClassName = "border-[var(--badge-hot)] bg-[var(--badge-hot)] text-[#fffce4]";
+const hotBadgeClassName =
+  "border-[var(--badge-hot)] bg-[var(--badge-hot)] text-[var(--on-badge-hot)]";
 
 export function CountBadge({ count, threshold = 4, tone }: CountBadgeProps) {
   const isHot = count >= threshold;

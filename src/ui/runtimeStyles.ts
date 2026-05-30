@@ -6,6 +6,9 @@ export const darkThemeTokens = {
   "--border": "#33356a",
   "--fg": "#fffce4",
   "--fg-muted": "#9b9cc4",
+  "--fg-subtle": "#9b9cc4",
+  "--on-accent": "#1a1b38",
+  "--on-badge-hot": "#fffce4",
   "--surface": "#25274c",
 } as const;
 
@@ -17,6 +20,9 @@ export const lightThemeTokens = {
   "--border": "#e6e0c4",
   "--fg": "#1a1b38",
   "--fg-muted": "#6c6d8c",
+  "--fg-subtle": "#666783",
+  "--on-accent": "#1a1b38",
+  "--on-badge-hot": "#fffce4",
   "--surface": "#f4f0dc",
 } as const;
 

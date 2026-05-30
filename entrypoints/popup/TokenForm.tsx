@@ -108,7 +108,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
 
       <div className="mt-1 flex items-center gap-3">
         <button
-          className="h-9 rounded-md bg-[var(--accent-fe)] px-4 text-[12px] font-semibold text-[#1a1b38] transition-opacity disabled:opacity-40"
+          className="h-9 rounded-md bg-[var(--accent-fe)] px-4 text-[12px] font-semibold text-[var(--on-accent)] transition-opacity disabled:opacity-40"
           disabled={!canSave}
           type="submit"
         >
@@ -137,7 +137,7 @@ function TokenField({ onChange, onToggleReveal, revealToken, token }: TokenField
       <input
         aria-describedby="token-scope-help"
         autoComplete="off"
-        className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-[var(--fg)] outline-none placeholder:text-[var(--fg)]"
+        className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-[var(--fg)] outline-none placeholder:text-[var(--fg-subtle)]"
         id="github-token"
         maxLength={GITHUB_TOKEN_MAX_LENGTH}
         onChange={onChange}

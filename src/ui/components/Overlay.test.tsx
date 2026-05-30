@@ -113,9 +113,9 @@ describe("overlay components", () => {
 
     expect(hotBadge?.textContent).toBe("4");
     expect(hotBadge?.className.toString()).toContain("bg-[var(--badge-hot)]");
-    expect(hotBadge?.className.toString()).toContain("text-[#fffce4]");
+    expect(hotBadge?.className.toString()).toContain("text-[var(--on-badge-hot)]");
     expect(regularBadge?.textContent).toBe("2");
-    expect(regularBadge?.className.toString()).toContain("text-[#1a1b38]");
+    expect(regularBadge?.className.toString()).toContain("text-[var(--on-accent)]");
     expect(zeroBadge?.textContent).toBe("0");
   });
 
