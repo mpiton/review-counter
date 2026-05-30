@@ -7,10 +7,11 @@ import type { MessageErrorReason, Request } from "../../messaging";
 /** Stable React Query cache key for review count data. */
 export const REVIEW_COUNTS_QUERY_KEY: readonly ["reviewCounts"] = ["reviewCounts"];
 
-/** UI query freshness window, aligned with the background service worker cache TTL. */
+/** UI query freshness window, aligned with the 60 second background service worker cache TTL. */
 export const REVIEW_COUNTS_STALE_TIME_MS = 60_000;
 
-const REVIEW_COUNTS_RETRY_LIMIT = 2;
+/** Retry limit for retryable review count failures such as transient network errors. */
+export const REVIEW_COUNTS_RETRY_LIMIT = 2;
 
 type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_COUNTS" }>;
 
