@@ -1,4 +1,4 @@
-const planetLogoUrl = "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png";
+import { PLANET_LOGO_URL } from "./constants";
 
 export function PopupHeader() {
   return (
@@ -9,7 +9,7 @@ export function PopupHeader() {
           className="pointer-events-none h-5 w-5"
           draggable={false}
           height="20"
-          src={planetLogoUrl}
+          src={PLANET_LOGO_URL}
           width="20"
         />
       </span>

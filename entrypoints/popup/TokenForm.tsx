@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { statusViews } from "./connectionStatus";
 import type { ConnectionStatus, StatusView } from "./connectionStatus";
 import { GITHUB_TOKEN_MAX_LENGTH, TOKEN_REVEAL_DURATION_MS, TOKEN_SETTINGS_URL } from "./constants";
 
-/** Props for the token configuration form and its background save flow. */
+/** Props that connect the token form to background-owned persistence and validation state. */
 interface TokenFormProps {
   readonly onSaveToken: (token: string) => Promise<ConnectionStatus>;
   readonly onStatusChange: (status: ConnectionStatus) => void;
   readonly status: ConnectionStatus;
 }
 
-/** Props for the password field and its visibility toggle. */
+/** Props for the controlled PAT password field and its explicit reveal/hide control. */
 interface TokenFieldProps {
   readonly onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   readonly onToggleReveal: () => void;
@@ -19,7 +19,7 @@ interface TokenFieldProps {
   readonly token: string;
 }
 
-/** Props for the compact connection status indicator. */
+/** Props for rendering the compact connection state badge beside the save action. */
 interface StatusIndicatorProps {
   readonly view: StatusView;
 }
@@ -45,39 +45,49 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
     };
   }, [revealToken]);
 
-  function handleTokenChange(event: ChangeEvent<HTMLInputElement>): void {
-    setToken(event.target.value);
+  const handleTokenChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>): void => {
+      setToken(event.target.value);
 
-    if (status === "error") {
-      onStatusChange("idle");
-    }
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-
-    if (!canSave) {
-      return;
-    }
-
-    setSaving(true);
-    setRevealToken(false);
-    onStatusChange("testing");
-
-    try {
-      const nextStatus = await onSaveToken(trimmedToken);
-
-      onStatusChange(nextStatus);
-
-      if (nextStatus === "connected") {
-        setToken("");
+      if (status === "error") {
+        onStatusChange("idle");
       }
-    } catch {
-      onStatusChange("error");
-    } finally {
-      setSaving(false);
-    }
-  }
+    },
+    [onStatusChange, status],
+  );
+
+  const handleRevealToggle = useCallback((): void => {
+    setRevealToken((current) => !current);
+  }, []);
+
+  const handleSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+      event.preventDefault();
+
+      if (!canSave) {
+        return;
+      }
+
+      setSaving(true);
+      setRevealToken(false);
+      onStatusChange("testing");
+
+      try {
+        const nextStatus = await onSaveToken(trimmedToken);
+
+        onStatusChange(nextStatus);
+
+        if (nextStatus === "connected") {
+          setToken("");
+        }
+      } catch {
+        onStatusChange("error");
+      } finally {
+        setSaving(false);
+      }
+    },
+    [canSave, onSaveToken, onStatusChange, trimmedToken],
+  );
 
   return (
     <form className="flex flex-col gap-3 p-4" onSubmit={handleSubmit}>
@@ -87,7 +97,7 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
 
       <TokenField
         onChange={handleTokenChange}
-        onToggleReveal={() => setRevealToken((current) => !current)}
+        onToggleReveal={handleRevealToggle}
         revealToken={revealToken}
         token={token}
       />

@@ -12,21 +12,17 @@ export function PopupApp() {
   useEffect(() => {
     activeRef.current = true;
 
-    async function validateStoredToken(): Promise<void> {
-      try {
-        const response = await sendMessage({ kind: "FETCH_REVIEW_COUNTS", force: true });
-
+    void sendMessage({ kind: "FETCH_REVIEW_COUNTS", force: true })
+      .then((response) => {
         if (activeRef.current) {
           setStatus(connectionStatusFromResponse(response));
         }
-      } catch {
+      })
+      .catch(() => {
         if (activeRef.current) {
           setStatus("error");
         }
-      }
-    }
-
-    void validateStoredToken();
+      });
 
     return () => {
       activeRef.current = false;
