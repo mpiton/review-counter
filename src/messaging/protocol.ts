@@ -14,8 +14,9 @@ import type { TeamReviewCounts } from "../domain";
  * - `RATE_LIMIT`: GitHub rate limiting prevented the request; callers should keep existing data
  *   visible and allow a later retry.
  * - `NETWORK`: transport or unexpected payload failure; callers should show a retryable error.
+ * - `UNKNOWN`: non-transport background failure without a more specific user-facing category.
  */
-export type MessageErrorReason = "NO_TOKEN" | "AUTH" | "RATE_LIMIT" | "NETWORK";
+export type MessageErrorReason = "NO_TOKEN" | "AUTH" | "RATE_LIMIT" | "NETWORK" | "UNKNOWN";
 
 type GetTokenRequest = { readonly kind: "GET_TOKEN" };
 type SetTokenRequest = { readonly kind: "SET_TOKEN"; readonly token: string };

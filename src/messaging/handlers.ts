@@ -89,7 +89,7 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
         });
 
       case "OPEN_CONFIGURATION":
-        return openConfigurationPopup(dependencies);
+        return handleOpenConfigurationPopup(dependencies);
     }
   };
 }
@@ -152,13 +152,17 @@ function isCacheFresh(cache: ReviewCountsCacheEntry, currentTime: number, ttlMs:
   return currentTime - cache.meta.fetchedAt < ttlMs;
 }
 
-async function openConfigurationPopup(dependencies: MessageHandlerDependencies): Promise<Response> {
+async function handleOpenConfigurationPopup(
+  dependencies: MessageHandlerDependencies,
+): Promise<Response> {
   try {
     await dependencies.openConfigurationPopup();
 
     return { kind: "OK" };
-  } catch {
-    return { kind: "ERROR", reason: "NETWORK" };
+  } catch (error: unknown) {
+    console.warn("[Vates Review Counter] Failed to open configuration popup", error);
+
+    return { kind: "ERROR", reason: "UNKNOWN" };
   }
 }
 

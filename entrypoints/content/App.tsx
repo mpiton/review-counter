@@ -91,9 +91,15 @@ function OverlayShell() {
     reviewCounts.meta?.openPullRequestCount,
   );
   const openConfiguration = useCallback(() => {
-    void sendMessage({ kind: "OPEN_CONFIGURATION" }).catch((error: unknown) => {
-      console.warn("[Vates Review Counter] Failed to open configuration", error);
-    });
+    void sendMessage({ kind: "OPEN_CONFIGURATION" })
+      .then((response) => {
+        if (response.kind === "ERROR") {
+          console.warn("[Vates Review Counter] Failed to open configuration", response.reason);
+        }
+      })
+      .catch((error: unknown) => {
+        console.warn("[Vates Review Counter] Failed to open configuration", error);
+      });
   }, []);
 
   if (!isOpen) {
@@ -221,6 +227,7 @@ function getErrorOverlayState(reason: MessageErrorReason | null): OverlayStateKi
     case "RATE_LIMIT":
       return "rate-limit";
     case "NETWORK":
+    case "UNKNOWN":
     case null:
       return "network-error";
   }

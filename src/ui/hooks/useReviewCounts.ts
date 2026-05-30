@@ -52,6 +52,7 @@ const reviewCountsErrorMessages: Record<MessageErrorReason, string> = {
   NETWORK: "Unable to reach the background data source.",
   NO_TOKEN: "No GitHub token is configured.",
   RATE_LIMIT: "GitHub rate limit reached.",
+  UNKNOWN: "Unexpected background failure.",
 };
 
 const reviewCountsQueryOptions = {

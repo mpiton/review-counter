@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PullRequestReviewRequests } from "../domain/aggregate";
 import type { TeamConfig, TeamReviewCounts } from "../domain/types";
 import type { ErrorReason, Result } from "../github";
@@ -37,18 +37,25 @@ describe("background message handlers", () => {
     expect(dependencies.openConfigurationCalls).toBe(1);
   });
 
-  it("maps configuration popup open failures to NETWORK errors", async () => {
+  it("maps configuration popup open failures to UNKNOWN errors", async () => {
+    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const openConfigurationError = new Error("blocked");
     const dependencies = createTestDependencies({
-      openConfigurationError: new Error("blocked"),
+      openConfigurationError,
       token: null,
     });
     const handleMessage = createMessageHandler(dependencies.options);
 
     await expect(handleMessage({ kind: "OPEN_CONFIGURATION" })).resolves.toEqual({
       kind: "ERROR",
-      reason: "NETWORK",
+      reason: "UNKNOWN",
     });
     expect(dependencies.openConfigurationCalls).toBe(1);
+    expect(consoleWarn).toHaveBeenCalledWith(
+      "[Vates Review Counter] Failed to open configuration popup",
+      openConfigurationError,
+    );
+    consoleWarn.mockRestore();
   });
 
   it("returns NO_TOKEN and skips GitHub fetching when no token is stored", async () => {
