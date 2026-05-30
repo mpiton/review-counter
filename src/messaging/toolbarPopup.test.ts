@@ -3,24 +3,22 @@ import { openToolbarPopup } from "./toolbarPopup";
 
 describe("toolbar popup opener", () => {
   it("opens the Chrome MV3 action popup", async () => {
-    const openPopup = vi.fn(async () => undefined);
+    const openPopup = vi.fn(() => Promise.resolve());
 
     await expect(openToolbarPopup({ action: { openPopup } })).resolves.toBeUndefined();
     expect(openPopup).toHaveBeenCalledOnce();
   });
 
   it("opens the Firefox MV2 browser action popup", async () => {
-    const openPopup = vi.fn(async () => undefined);
+    const openPopup = vi.fn(() => Promise.resolve());
 
     await expect(openToolbarPopup({ browserAction: { openPopup } })).resolves.toBeUndefined();
     expect(openPopup).toHaveBeenCalledOnce();
   });
 
   it("falls back to browserAction when action fails", async () => {
-    const actionOpenPopup = vi.fn(async () => {
-      throw new Error("unsupported action namespace");
-    });
-    const browserActionOpenPopup = vi.fn(async () => undefined);
+    const actionOpenPopup = vi.fn(() => Promise.reject(new Error("unsupported action namespace")));
+    const browserActionOpenPopup = vi.fn(() => Promise.resolve());
 
     await expect(
       openToolbarPopup({
@@ -39,12 +37,8 @@ describe("toolbar popup opener", () => {
   });
 
   it("rejects when every toolbar popup API fails", async () => {
-    const actionOpenPopup = vi.fn(async () => {
-      throw new Error("action failed");
-    });
-    const browserActionOpenPopup = vi.fn(async () => {
-      throw new Error("browser action failed");
-    });
+    const actionOpenPopup = vi.fn(() => Promise.reject(new Error("action failed")));
+    const browserActionOpenPopup = vi.fn(() => Promise.reject(new Error("browser action failed")));
 
     await expect(
       openToolbarPopup({

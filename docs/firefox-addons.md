@@ -26,9 +26,7 @@ Dependencies are restored from the public npm registry through `pnpm` using `pnp
 
 ## Version Notes
 
-```text
 Fix opening the configuration popup from the GitHub overlay in Firefox builds.
-```
 
 ## Listing
 
