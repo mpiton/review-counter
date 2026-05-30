@@ -14,12 +14,25 @@ const placeholderLoginPrefix = "replace-";
  */
 export const teamConfig: TeamConfig = {
   frontend: [
-    { login: "replace-frontend-1", displayName: "Frontend reviewer 1" },
-    { login: "replace-frontend-2", displayName: "Frontend reviewer 2" },
+    { login: "J0ris-K", displayName: "Joris Kosacki" },
+    { login: "MelissaFrncJrg", displayName: "Mélissa Franca" },
+    { login: "OlivierFL", displayName: "Olivier Floch" },
+    { login: "pdonias", displayName: "Pierre Donias" },
+    { login: "UnelDev", displayName: "Énée Di Iorio" },
+    { login: "Elise-FZI", displayName: "Elise Franzini" },
+    { login: "pierre-briffaux", displayName: "Pierre Briffaux" },
+    { login: "sylvere-a", displayName: "Sylvère Armange" },
+    { login: "sandrine-bd", displayName: "Sandrine Barrucand" },
+    { login: "Marie-Garde", displayName: "Marie Garde" },
   ],
   backend: [
-    { login: "replace-backend-1", displayName: "Backend reviewer 1" },
-    { login: "replace-backend-2", displayName: "Backend reviewer 2" },
+    { login: "b-Nollet", displayName: "Bastien Nollet" },
+    { login: "fbeauchamp", displayName: "Florent Beauchamp" },
+    { login: "MathieuRA", displayName: "Mathieu Raisin" },
+    { login: "pierrebrunet289", displayName: "Pierre Brunet" },
+    { login: "mpiton", displayName: "Mathieu Piton" },
+    { login: "spacotte-vates", displayName: "Simon Pacotte" },
+    { login: "All-Ki", displayName: "Killian Allegrain" },
   ],
 };
 

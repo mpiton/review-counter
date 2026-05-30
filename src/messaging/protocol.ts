@@ -20,6 +20,7 @@ export type MessageErrorReason = "NO_TOKEN" | "AUTH" | "RATE_LIMIT" | "NETWORK";
 type GetTokenRequest = { readonly kind: "GET_TOKEN" };
 type SetTokenRequest = { readonly kind: "SET_TOKEN"; readonly token: string };
 type FetchReviewCountsRequest = { readonly kind: "FETCH_REVIEW_COUNTS"; readonly force?: boolean };
+type OpenConfigurationRequest = { readonly kind: "OPEN_CONFIGURATION" };
 
 /**
  * Metadata attached to review count responses for UI cache freshness and scan context.
@@ -43,7 +44,11 @@ type ErrorResponse = { readonly kind: "ERROR"; readonly reason: MessageErrorReas
 /**
  * Messages sent by popup or content contexts to the background service worker.
  */
-export type Request = GetTokenRequest | SetTokenRequest | FetchReviewCountsRequest;
+export type Request =
+  | GetTokenRequest
+  | SetTokenRequest
+  | FetchReviewCountsRequest
+  | OpenConfigurationRequest;
 
 /**
  * Messages returned by the background service worker to extension callers.
@@ -56,7 +61,9 @@ type ResponseFor<TRequest extends Request> = TRequest extends GetTokenRequest
     ? OkResponse | ErrorResponse
     : TRequest extends FetchReviewCountsRequest
       ? ReviewCountsResponse | ErrorResponse
-      : Response;
+      : TRequest extends OpenConfigurationRequest
+        ? OkResponse | ErrorResponse
+        : Response;
 
 /**
  * Send a typed extension request through the browser runtime messaging channel.

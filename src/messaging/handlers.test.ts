@@ -29,6 +29,28 @@ describe("background message handlers", () => {
     expect(dependencies.setTokenCalls).toEqual(["updated-secret-token"]);
   });
 
+  it("opens the configuration popup from the background context", async () => {
+    const dependencies = createTestDependencies({ token: null });
+    const handleMessage = createMessageHandler(dependencies.options);
+
+    await expect(handleMessage({ kind: "OPEN_CONFIGURATION" })).resolves.toEqual({ kind: "OK" });
+    expect(dependencies.openConfigurationCalls).toBe(1);
+  });
+
+  it("maps configuration popup open failures to NETWORK errors", async () => {
+    const dependencies = createTestDependencies({
+      openConfigurationError: new Error("blocked"),
+      token: null,
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+
+    await expect(handleMessage({ kind: "OPEN_CONFIGURATION" })).resolves.toEqual({
+      kind: "ERROR",
+      reason: "NETWORK",
+    });
+    expect(dependencies.openConfigurationCalls).toBe(1);
+  });
+
   it("returns NO_TOKEN and skips GitHub fetching when no token is stored", async () => {
     const dependencies = createTestDependencies({ token: null });
     const handleMessage = createMessageHandler(dependencies.options);
@@ -170,8 +192,10 @@ describe("background message handlers", () => {
 function createTestDependencies(options: {
   readonly token: string | null;
   readonly fetchResults?: readonly Result<readonly PullRequestReviewRequests[], ErrorReason>[];
+  readonly openConfigurationError?: Error;
 }): {
   readonly fetchCalls: readonly string[];
+  readonly openConfigurationCalls: number;
   readonly options: MessageHandlerOptions;
   readonly setNow: (nextNow: number) => void;
   readonly setTokenCalls: readonly string[];
@@ -179,6 +203,7 @@ function createTestDependencies(options: {
   const fetchResults = [...(options.fetchResults ?? [])];
   const fetchCalls: string[] = [];
   const setTokenCalls: string[] = [];
+  let openConfigurationCalls = 0;
   let currentToken = options.token;
   let currentNow = 0;
 
@@ -196,10 +221,20 @@ function createTestDependencies(options: {
 
   return {
     fetchCalls,
+    get openConfigurationCalls() {
+      return openConfigurationCalls;
+    },
     options: {
       fetchOpenPRs,
       getToken: async () => currentToken,
       now: () => currentNow,
+      openConfigurationPopup: async () => {
+        openConfigurationCalls += 1;
+
+        if (options.openConfigurationError !== undefined) {
+          throw options.openConfigurationError;
+        }
+      },
       setToken: async (token) => {
         currentToken = token;
         setTokenCalls.push(token);

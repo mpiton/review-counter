@@ -2,10 +2,16 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "wxt";
 
 export default defineConfig({
-  manifest: {
+  manifest: ({ browser }) => ({
     name: "Vates Review Counter",
     description: "Compte les PR ouvertes où les membres Vates sont demandés en review.",
-    version: "0.0.0",
+    version: "0.1.0",
+    icons: {
+      16: "icons/icon-16.png",
+      32: "icons/icon-32.png",
+      48: "icons/icon-48.png",
+      128: "icons/icon-128.png",
+    },
     // Required for local PAT storage; storage.sync is not used.
     permissions: ["storage"],
     host_permissions: [
@@ -17,14 +23,33 @@ export default defineConfig({
     action: {
       // Required popup entrypoint; it does not grant page or API access.
       default_popup: "popup/index.html",
+      default_icon: {
+        16: "icons/icon-16.png",
+        32: "icons/icon-32.png",
+        48: "icons/icon-48.png",
+        128: "icons/icon-128.png",
+      },
     },
     web_accessible_resources: [
       {
-        matches: ["https://github.com/vatesfr/*"],
-        resources: ["fonts/*.woff2"],
+        // MV3 web-accessible resource matches are origin-scoped by Chrome.
+        matches: ["https://github.com/*"],
+        resources: ["fonts/*.woff2", "icons/vates-planet.png"],
       },
     ],
-  },
+    ...(browser === "firefox"
+      ? {
+          browser_specific_settings: {
+            gecko: {
+              // Required by Firefox for new extensions; no personal data is collected.
+              data_collection_permissions: {
+                required: ["none"],
+              },
+            },
+          },
+        }
+      : {}),
+  }),
   modules: ["@wxt-dev/module-react"],
   vite: () => ({
     plugins: [tailwindcss()],

@@ -25,6 +25,9 @@ export type SetStoredToken = (token: string) => Promise<void>;
 /** Fetches normalized open pull requests with their requested reviewers from GitHub. */
 export type FetchOpenPullRequests = (token: string) => Promise<Result<NormalizedPRs, ErrorReason>>;
 
+/** Opens the extension-owned configuration popup from the background context. */
+export type OpenConfigurationPopup = () => Promise<void>;
+
 /** Handles one typed extension request and returns its typed response. */
 export type MessageHandler = (request: Request) => Promise<Response>;
 
@@ -33,6 +36,7 @@ export interface MessageHandlerOptions {
   readonly fetchOpenPRs?: FetchOpenPullRequests;
   readonly getToken?: GetStoredToken;
   readonly now?: () => number;
+  readonly openConfigurationPopup?: OpenConfigurationPopup;
   readonly setToken?: SetStoredToken;
   readonly teamConfig?: TeamConfig;
   readonly ttlMs?: number;
@@ -42,6 +46,7 @@ interface MessageHandlerDependencies {
   readonly fetchOpenPRs: FetchOpenPullRequests;
   readonly getToken: GetStoredToken;
   readonly now: () => number;
+  readonly openConfigurationPopup: OpenConfigurationPopup;
   readonly setToken: SetStoredToken;
   readonly teamConfig: TeamConfig;
   readonly ttlMs: number;
@@ -82,6 +87,9 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
         return fetchReviewCounts(dependencies, (entry) => {
           cache = entry;
         });
+
+      case "OPEN_CONFIGURATION":
+        return openConfigurationPopup(dependencies);
     }
   };
 }
@@ -107,6 +115,7 @@ function createDependencies(options: MessageHandlerOptions): MessageHandlerDepen
     fetchOpenPRs: options.fetchOpenPRs ?? defaultFetchOpenPRs,
     getToken: options.getToken ?? defaultGetToken,
     now: options.now ?? Date.now,
+    openConfigurationPopup: options.openConfigurationPopup ?? noopOpenConfigurationPopup,
     setToken: options.setToken ?? defaultSetToken,
     teamConfig: options.teamConfig ?? defaultTeamConfig,
     ttlMs: options.ttlMs ?? DEFAULT_REVIEW_COUNTS_CACHE_TTL_MS,
@@ -141,4 +150,18 @@ async function fetchReviewCounts(
 
 function isCacheFresh(cache: ReviewCountsCacheEntry, currentTime: number, ttlMs: number): boolean {
   return currentTime - cache.meta.fetchedAt < ttlMs;
+}
+
+async function openConfigurationPopup(dependencies: MessageHandlerDependencies): Promise<Response> {
+  try {
+    await dependencies.openConfigurationPopup();
+
+    return { kind: "OK" };
+  } catch {
+    return { kind: "ERROR", reason: "NETWORK" };
+  }
+}
+
+async function noopOpenConfigurationPopup(): Promise<void> {
+  return undefined;
 }

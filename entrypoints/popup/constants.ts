@@ -1,3 +1,5 @@
+import { resolveExtensionAssetUrl } from "../../src/ui/runtimeAsset";
+
 /** Prevents storing accidental pasted payloads while staying above current GitHub PAT lengths. */
 export const GITHUB_TOKEN_MAX_LENGTH = 100;
 
@@ -9,5 +11,4 @@ export const TOKEN_SETTINGS_URL =
   "https://github.com/settings/tokens/new?scopes=public_repo&description=Vates%20Review%20Counter";
 
 /** Vates planet mark used in the compact popup header. */
-export const PLANET_LOGO_URL =
-  "https://vates.tech/blog/content/images/2022/12/png-vates-planetonly.png";
+export const PLANET_LOGO_URL = resolveExtensionAssetUrl("icons/vates-planet.png");

@@ -17,6 +17,7 @@ import type { ReviewCountsResponseMetadata } from "./protocol";
 
 type SetTokenRequest = Extract<Request, { readonly kind: "SET_TOKEN" }>;
 type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_COUNTS" }>;
+type OpenConfigurationRequest = Extract<Request, { readonly kind: "OPEN_CONFIGURATION" }>;
 type ErrorResponse = Extract<Response, { readonly kind: "ERROR" }>;
 type TokenResponse = Extract<Response, { readonly kind: "TOKEN" }>;
 type OkResponse = Extract<Response, { readonly kind: "OK" }>;
@@ -70,6 +71,16 @@ describe("messaging protocol", () => {
     expectTypeOf(sendMessage(request)).toEqualTypeOf<
       Promise<ReviewCountsResponse | ErrorResponse>
     >();
+  });
+
+  it("sends OPEN_CONFIGURATION requests and returns ok responses", async () => {
+    const request = { kind: "OPEN_CONFIGURATION" } satisfies OpenConfigurationRequest;
+    const response = { kind: "OK" } satisfies OkResponse;
+    runtimeMock.sendMessage.mockResolvedValueOnce(response);
+
+    await expect(sendMessage(request)).resolves.toEqual(response);
+    expect(runtimeMock.sendMessage).toHaveBeenCalledWith(request);
+    expectTypeOf(sendMessage(request)).toEqualTypeOf<Promise<OkResponse | ErrorResponse>>();
   });
 
   it("allows typed error responses for every request kind", async () => {
