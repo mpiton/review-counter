@@ -6,6 +6,7 @@ export default defineConfig({
     include: [
       "src/domain/**/*.{test,spec}.ts",
       "src/github/**/*.{test,spec}.ts",
+      "src/messaging/**/*.{test,spec}.ts",
       "src/storage/**/*.{test,spec}.ts",
     ],
     passWithNoTests: true,
