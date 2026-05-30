@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useRefreshSpinner(onRefresh: () => Promise<void>): readonly [boolean, () => void] {
+export const DEFAULT_REFRESH_SPINNER_RESET_DELAY_MS = 850;
+
+export function useRefreshSpinner(
+  onRefresh: () => Promise<void>,
+  resetDelayMs = DEFAULT_REFRESH_SPINNER_RESET_DELAY_MS,
+): readonly [boolean, () => void] {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isMounted = useRef(true);
   const resetTimer = useRef<number | null>(null);
@@ -22,8 +27,8 @@ export function useRefreshSpinner(onRefresh: () => Promise<void>): readonly [boo
     void Promise.resolve()
       .then(onRefresh)
       .catch(() => undefined)
-      .finally(() => scheduleSpinnerReset(isMounted, resetTimer, setIsRefreshing));
-  }, [isRefreshing, onRefresh]);
+      .finally(() => scheduleSpinnerReset(isMounted, resetTimer, setIsRefreshing, resetDelayMs));
+  }, [isRefreshing, onRefresh, resetDelayMs]);
 
   return [isRefreshing, refresh];
 }
@@ -32,6 +37,7 @@ function scheduleSpinnerReset(
   isMounted: React.RefObject<boolean>,
   resetTimer: React.RefObject<number | null>,
   setIsRefreshing: (isRefreshing: boolean) => void,
+  resetDelayMs: number,
 ): void {
   if (!isMounted.current) {
     return;
@@ -43,7 +49,7 @@ function scheduleSpinnerReset(
     }
 
     resetTimer.current = null;
-  }, 850);
+  }, resetDelayMs);
 }
 
 function clearResetTimer(resetTimer: React.RefObject<number | null>): void {

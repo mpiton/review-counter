@@ -8,7 +8,7 @@ import { OverlayState } from "./OverlayState";
 import { Section } from "./Section";
 import { getBodyPaddingClassName, getDegradedState } from "./overlayHelpers";
 import type { OverlayDensity, OverlayPosition, OverlayStateKind } from "./types";
-import { useRefreshSpinner } from "./useRefreshSpinner";
+import { DEFAULT_REFRESH_SPINNER_RESET_DELAY_MS, useRefreshSpinner } from "./useRefreshSpinner";
 
 interface OverlayProps {
   readonly className?: string;
@@ -22,9 +22,11 @@ interface OverlayProps {
   readonly openPullRequestCount: number | undefined;
   readonly planetImageUrl: string;
   readonly position: OverlayPosition;
+  readonly refreshSpinnerResetDelayMs?: number;
   readonly state: OverlayStateKind;
   readonly threshold?: number;
 }
+
 export function Overlay({
   className = "",
   data,
@@ -37,10 +39,11 @@ export function Overlay({
   openPullRequestCount,
   planetImageUrl,
   position,
+  refreshSpinnerResetDelayMs = DEFAULT_REFRESH_SPINNER_RESET_DELAY_MS,
   state,
   threshold = 4,
 }: OverlayProps) {
-  const [isRefreshing, refresh] = useRefreshSpinner(onRefresh);
+  const [isRefreshing, refresh] = useRefreshSpinner(onRefresh, refreshSpinnerResetDelayMs);
   const degradedState = getDegradedState(state);
   const isLoading = state === "loading";
 
