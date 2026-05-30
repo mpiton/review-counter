@@ -45,6 +45,6 @@ describe("toolbar popup opener", () => {
         action: { openPopup: actionOpenPopup },
         browserAction: { openPopup: browserActionOpenPopup },
       }),
-    ).rejects.toThrow("Failed to open toolbar popup");
+    ).rejects.toThrow("Failed to open toolbar popup via action and browserAction");
   });
 });
