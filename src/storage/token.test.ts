@@ -53,6 +53,12 @@ describe("token storage", () => {
     await expect(getToken()).resolves.toBeNull();
   });
 
+  it("returns null when the stored token is blank", async () => {
+    storageMock.values.set(GITHUB_TOKEN_STORAGE_KEY, " ");
+
+    await expect(getToken()).resolves.toBeNull();
+  });
+
   it("clears the stored token", async () => {
     await setToken("secret-token");
     await clearToken();
