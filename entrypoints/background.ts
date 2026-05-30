@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import type { Browser } from "wxt/browser";
 import { createMessageHandler } from "../src/messaging/handlers";
 import type { Request, Response } from "../src/messaging/protocol";
+import { openToolbarPopup } from "../src/messaging/toolbarPopup";
 
 const handleMessage = createMessageHandler({
   openConfigurationPopup,
@@ -31,5 +32,5 @@ function handleRuntimeMessage(
 }
 
 async function openConfigurationPopup(): Promise<void> {
-  await browser.action.openPopup();
+  await openToolbarPopup(browser);
 }
