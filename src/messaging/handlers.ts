@@ -53,6 +53,10 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
   const dependencies = createDependencies(options);
   let cache: ReviewCountsCacheEntry | null = null;
 
+  function invalidateCache(): void {
+    cache = null;
+  }
+
   return async (request) => {
     switch (request.kind) {
       case "GET_TOKEN":
@@ -60,7 +64,7 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
 
       case "SET_TOKEN":
         await dependencies.setToken(request.token);
-        cache = null;
+        invalidateCache();
 
         return { kind: "OK" };
 
