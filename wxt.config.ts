@@ -41,9 +41,11 @@ export default defineConfig({
       ? {
           browser_specific_settings: {
             gecko: {
-              // Required by Firefox for new extensions; no personal data is collected.
+              // Required by Firefox signing and AMO's built-in data disclosure flow.
+              id: "vates-review-counter@vates.tech",
+              strict_min_version: "140.0",
               data_collection_permissions: {
-                required: ["none"],
+                required: ["authenticationInfo", "websiteContent"],
               },
             },
           },
