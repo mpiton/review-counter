@@ -3,7 +3,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/domain/**/*.{test,spec}.ts", "src/github/**/*.{test,spec}.ts"],
+    include: [
+      "src/domain/**/*.{test,spec}.ts",
+      "src/github/**/*.{test,spec}.ts",
+      "src/storage/**/*.{test,spec}.ts",
+    ],
     passWithNoTests: true,
     restoreMocks: true,
   },
