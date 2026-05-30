@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { statusViews } from "./connectionStatus";
 import type { ConnectionStatus, StatusView } from "./connectionStatus";
 
+/** Props for the token configuration form and its background save flow. */
 interface TokenFormProps {
   readonly onSaveToken: (token: string) => Promise<ConnectionStatus>;
   readonly onStatusChange: (status: ConnectionStatus) => void;
   readonly status: ConnectionStatus;
 }
 
+/** Props for the password field and its visibility toggle. */
 interface TokenFieldProps {
   readonly onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   readonly onToggleReveal: () => void;
@@ -16,12 +18,14 @@ interface TokenFieldProps {
   readonly token: string;
 }
 
+/** Props for the compact connection status indicator. */
 interface StatusIndicatorProps {
   readonly view: StatusView;
 }
 
 const tokenSettingsUrl =
   "https://github.com/settings/tokens/new?scopes=public_repo&description=Vates%20Review%20Counter";
+const revealTokenTimeoutMs = 15_000;
 
 export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProps) {
   const [token, setToken] = useState("");
@@ -29,6 +33,20 @@ export function TokenForm({ onSaveToken, onStatusChange, status }: TokenFormProp
   const [saving, setSaving] = useState(false);
   const trimmedToken = token.trim();
   const canSave = trimmedToken.length > 0 && !saving;
+
+  useEffect(() => {
+    if (!revealToken) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setRevealToken(false);
+    }, revealTokenTimeoutMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [revealToken]);
 
   function handleTokenChange(event: ChangeEvent<HTMLInputElement>): void {
     setToken(event.target.value);
