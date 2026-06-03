@@ -3,12 +3,12 @@ import type { QueryClientConfig } from "@tanstack/react-query";
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { browser } from "wxt/browser";
 import type { TeamReviewCounts } from "../../src/domain";
 import type { MessageErrorReason } from "../../src/messaging";
 import { sendMessage } from "../../src/messaging";
 import { Overlay, PlanetButton } from "../../src/ui/components";
 import type { OverlayPosition, OverlayStateKind } from "../../src/ui/components";
+import { usePersistentState } from "../../src/ui/hooks/usePersistentState";
 import { useReviewCounts } from "../../src/ui/hooks/useReviewCounts";
 import {
   defaultOverlayPosition,
@@ -81,7 +81,11 @@ class OverlayErrorBoundary extends Component<OverlayErrorBoundaryProps, OverlayE
 
 function OverlayShell() {
   const reviewCounts = useReviewCounts();
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen, isOpenLoaded] = usePersistentState({
+    storageKey: overlayConfig.openStorageKey,
+    fallback: true,
+    isValid: isBoolean,
+  });
   const [position, setPosition] = usePersistentOverlayPosition();
   const freshness = useCacheFreshness(reviewCounts.meta?.fetchedAt);
   const total = useMemo(() => countRequestedReviews(reviewCounts.data), [reviewCounts.data]);
@@ -101,6 +105,10 @@ function OverlayShell() {
         console.warn("[Vates Review Counter] Failed to open configuration", error);
       });
   }, []);
+
+  if (!isOpenLoaded) {
+    return null;
+  }
 
   if (!isOpen) {
     return (
@@ -136,54 +144,14 @@ function usePersistentOverlayPosition(): readonly [
   OverlayPosition,
   (position: OverlayPosition) => void,
 ] {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [position, setPosition] = useState(() => normalizePosition(defaultOverlayPosition));
-  const updatePosition = useCallback((nextPosition: OverlayPosition) => {
-    setPosition(normalizePosition(nextPosition));
-  }, []);
+  const [position, setPosition] = usePersistentState<OverlayPosition>({
+    storageKey: overlayConfig.storageKey,
+    fallback: defaultOverlayPosition,
+    isValid: isOverlayPosition,
+    normalize: normalizePosition,
+  });
 
-  useEffect(() => {
-    let isActive = true;
-
-    void browser.storage.local
-      .get(overlayConfig.storageKey)
-      .then((values: Record<string, unknown>) => {
-        if (!isActive) {
-          return;
-        }
-
-        const storedPosition = values[overlayConfig.storageKey];
-        setPosition(
-          isOverlayPosition(storedPosition)
-            ? normalizePosition(storedPosition)
-            : normalizePosition(defaultOverlayPosition),
-        );
-        setIsLoaded(true);
-      })
-      .catch((error: unknown) => {
-        if (!isActive) {
-          return;
-        }
-
-        console.warn("[Vates Review Counter] Failed to load overlay position", error);
-        setPosition(normalizePosition(defaultOverlayPosition));
-        setIsLoaded(true);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isLoaded) {
-      return;
-    }
-
-    void browser.storage.local.set({ [overlayConfig.storageKey]: position });
-  }, [isLoaded, position]);
-
-  return [position, updatePosition];
+  return [position, setPosition];
 }
 
 function useCacheFreshness(fetchedAt: number | undefined): string | undefined {
@@ -258,6 +226,10 @@ function formatCacheFreshness(fetchedAt: number, now: number): string {
   const ageMinutes = Math.floor(ageSeconds / 60);
 
   return `il y a ${ageMinutes} min`;
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
 }
 
 function isOverlayPosition(value: unknown): value is OverlayPosition {

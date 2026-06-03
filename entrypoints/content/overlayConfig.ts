@@ -3,6 +3,7 @@ import type { OverlayPosition } from "../../src/ui/components";
 
 export const overlayConfig = {
   storageKey: "vatesReviewCounter.overlayPosition",
+  openStorageKey: "vatesReviewCounter.overlayOpen",
   defaultOffsetPx: 24,
   edgeOffsetPx: 8,
   panelWidthPx: 320,
