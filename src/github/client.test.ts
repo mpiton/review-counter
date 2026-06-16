@@ -1,9 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { OpenPullRequestsGraphqlResponse } from "./graphql";
-import { OPEN_PULL_REQUESTS_QUERY, createOpenPullRequestsVariables } from "./graphql";
+import type {
+  OpenPullRequestsGraphqlResponse,
+  RepositoryCollaboratorsGraphqlResponse,
+} from "./graphql";
+import {
+  OPEN_PULL_REQUESTS_QUERY,
+  REPOSITORY_COLLABORATORS_QUERY,
+  createOpenPullRequestsVariables,
+  createRepositoryCollaboratorsVariables,
+} from "./graphql";
 import type { GitHubFetch } from "./client";
-import { GITHUB_GRAPHQL_ENDPOINT, fetchOpenPRs } from "./client";
+import { GITHUB_GRAPHQL_ENDPOINT, fetchMergeAccessLogins, fetchOpenPRs } from "./client";
 
 interface FetchCall {
   readonly input: RequestInfo | URL;
@@ -220,5 +228,113 @@ describe("fetchOpenPRs", () => {
     } finally {
       consoleLog.mockRestore();
     }
+  });
+});
+
+function createCollaboratorsResponse(
+  response: RepositoryCollaboratorsGraphqlResponse,
+  init: ResponseInit = {},
+): Response {
+  return createJsonResponse(response, init);
+}
+
+function createCollaboratorsPage(
+  hasNextPage: boolean,
+  endCursor: string | null,
+  edges: readonly { readonly permission: string; readonly login: string }[],
+): RepositoryCollaboratorsGraphqlResponse {
+  return {
+    data: {
+      repository: {
+        collaborators: {
+          pageInfo: { hasNextPage, endCursor },
+          edges: edges.map((edge) => ({
+            permission: edge.permission,
+            node: { login: edge.login },
+          })),
+        },
+      },
+    },
+  } satisfies RepositoryCollaboratorsGraphqlResponse;
+}
+
+describe("fetchMergeAccessLogins", () => {
+  it("posts the collaborators query and keeps only merge-capable permissions", async () => {
+    const { calls, fetchImpl } = createFetchMock([
+      createCollaboratorsResponse(
+        createCollaboratorsPage(false, null, [
+          { permission: "ADMIN", login: "admin-user" },
+          { permission: "MAINTAIN", login: "maintainer" },
+          { permission: "WRITE", login: "writer" },
+          { permission: "TRIAGE", login: "triager" },
+          { permission: "READ", login: "reader" },
+        ]),
+      ),
+    ]);
+
+    const result = await fetchMergeAccessLogins("secret-token", fetchImpl);
+
+    expect(result).toEqual({
+      ok: true,
+      value: ["admin-user", "maintainer", "writer"],
+    });
+    expect(calls[0]?.input).toBe(GITHUB_GRAPHQL_ENDPOINT);
+    expect(calls[0]?.init?.body).toBe(
+      JSON.stringify({
+        query: REPOSITORY_COLLABORATORS_QUERY,
+        variables: createRepositoryCollaboratorsVariables(),
+      }),
+    );
+  });
+
+  it("paginates collaborators until the final cursor page", async () => {
+    const { calls, fetchImpl } = createFetchMock([
+      createCollaboratorsResponse(
+        createCollaboratorsPage(true, "cursor-2", [{ permission: "WRITE", login: "writer" }]),
+      ),
+      createCollaboratorsResponse(
+        createCollaboratorsPage(false, null, [{ permission: "ADMIN", login: "admin-user" }]),
+      ),
+    ]);
+
+    const result = await fetchMergeAccessLogins("secret-token", fetchImpl);
+
+    expect(result).toEqual({ ok: true, value: ["writer", "admin-user"] });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.init?.body).toBe(
+      JSON.stringify({
+        query: REPOSITORY_COLLABORATORS_QUERY,
+        variables: createRepositoryCollaboratorsVariables("cursor-2"),
+      }),
+    );
+  });
+
+  it("returns AUTH for a token lacking push access so callers can fall back to config", async () => {
+    const { fetchImpl } = createFetchMock([new Response(null, { status: 403 })]);
+
+    await expect(fetchMergeAccessLogins("secret-token", fetchImpl)).resolves.toEqual({
+      ok: false,
+      reason: "AUTH",
+    });
+  });
+
+  it("returns an empty list when the repository is unreadable", async () => {
+    const { fetchImpl } = createFetchMock([createJsonResponse({ data: { repository: null } })]);
+
+    await expect(fetchMergeAccessLogins("secret-token", fetchImpl)).resolves.toEqual({
+      ok: true,
+      value: [],
+    });
+  });
+
+  it("returns NETWORK when fetch rejects", async () => {
+    const fetchImpl: GitHubFetch = async () => {
+      throw new TypeError("Failed to fetch");
+    };
+
+    await expect(fetchMergeAccessLogins("secret-token", fetchImpl)).resolves.toEqual({
+      ok: false,
+      reason: "NETWORK",
+    });
   });
 });

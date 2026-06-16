@@ -27,6 +27,13 @@ export function MemberRow({ member, threshold = 4, tone }: MemberRowProps) {
       <span className="min-w-0 truncate text-[13px] leading-none text-[var(--fg)]">
         {member.displayName}
       </span>
+      {member.canMerge ? (
+        <span
+          aria-label="Can merge into the default branch"
+          title="Can merge into the default branch"
+          className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--merge-marker)]"
+        />
+      ) : null}
       <span className="ml-auto max-w-[92px] shrink-0 truncate whitespace-nowrap font-mono text-[11px] leading-none text-[var(--fg)]">
         {member.login}
       </span>

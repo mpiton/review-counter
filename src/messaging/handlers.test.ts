@@ -3,7 +3,11 @@ import type { PullRequestReviewRequests } from "../domain/aggregate";
 import type { TeamConfig, TeamReviewCounts } from "../domain/types";
 import type { ErrorReason, Result } from "../github";
 import { createMessageHandler } from "./handlers";
-import type { FetchOpenPullRequests, MessageHandlerOptions } from "./handlers";
+import type {
+  FetchMergeAccessLogins,
+  FetchOpenPullRequests,
+  MessageHandlerOptions,
+} from "./handlers";
 import type { ReviewCountsResponseMetadata } from "./protocol";
 
 const cacheTtlMs = 60_000;
@@ -94,6 +98,56 @@ describe("background message handlers", () => {
       } satisfies ReviewCountsResponseMetadata,
     });
     expect(dependencies.fetchCalls).toEqual(["secret-token"]);
+  });
+
+  it("marks reviewers with live merge access and leaves the rest unflagged", async () => {
+    const dependencies = createTestDependencies({
+      token: "secret-token",
+      fetchResults: [
+        okResult([{ reviewRequests: [{ login: "alice" }, { login: "unknown-reviewer" }] }]),
+      ],
+      mergeAccessResult: { ok: true, value: ["ALICE", "unknown-reviewer"] },
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+
+    const response = await handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+
+    expect(response).toMatchObject({
+      kind: "REVIEW_COUNTS",
+      data: {
+        frontend: [{ login: "Alice", canMerge: true }],
+        others: [{ login: "unknown-reviewer", canMerge: true }],
+      },
+    });
+    if (response.kind !== "REVIEW_COUNTS") {
+      throw new Error("expected review counts");
+    }
+    expect(response.data.backend[0]).not.toHaveProperty("canMerge");
+    expect(dependencies.mergeAccessCalls).toEqual(["secret-token"]);
+  });
+
+  it("falls back to configured canMerge flags when the live merge lookup fails", async () => {
+    const dependencies = createTestDependencies({
+      token: "secret-token",
+      fetchResults: [okResult([{ reviewRequests: [{ login: "alice" }] }])],
+      mergeAccessResult: { ok: false, reason: "AUTH" },
+      teamConfig: {
+        frontend: [{ login: "Alice", displayName: "Alice Frontend", canMerge: true }],
+        backend: [{ login: "bob", displayName: "Bob Backend" }],
+      },
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+
+    const response = await handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+
+    expect(response).toMatchObject({
+      kind: "REVIEW_COUNTS",
+      data: { frontend: [{ login: "Alice", canMerge: true }] },
+    });
+    if (response.kind !== "REVIEW_COUNTS") {
+      throw new Error("expected review counts");
+    }
+    expect(response.data.backend[0]).not.toHaveProperty("canMerge");
   });
 
   it("serves fresh cached review counts inside the TTL", async () => {
@@ -199,9 +253,12 @@ describe("background message handlers", () => {
 function createTestDependencies(options: {
   readonly token: string | null;
   readonly fetchResults?: readonly Result<readonly PullRequestReviewRequests[], ErrorReason>[];
+  readonly mergeAccessResult?: Result<readonly string[], ErrorReason>;
+  readonly teamConfig?: TeamConfig;
   readonly openConfigurationError?: Error;
 }): {
   readonly fetchCalls: readonly string[];
+  readonly mergeAccessCalls: readonly string[];
   readonly openConfigurationCalls: number;
   readonly options: MessageHandlerOptions;
   readonly setNow: (nextNow: number) => void;
@@ -209,6 +266,7 @@ function createTestDependencies(options: {
 } {
   const fetchResults = [...(options.fetchResults ?? [])];
   const fetchCalls: string[] = [];
+  const mergeAccessCalls: string[] = [];
   const setTokenCalls: string[] = [];
   let openConfigurationCalls = 0;
   let currentToken = options.token;
@@ -226,13 +284,21 @@ function createTestDependencies(options: {
     return result;
   };
 
+  const fetchMergeAccessLogins: FetchMergeAccessLogins = async (token) => {
+    mergeAccessCalls.push(token);
+
+    return options.mergeAccessResult ?? { ok: false, reason: "AUTH" };
+  };
+
   return {
     fetchCalls,
+    mergeAccessCalls,
     get openConfigurationCalls() {
       return openConfigurationCalls;
     },
     options: {
       fetchOpenPRs,
+      fetchMergeAccessLogins,
       getToken: async () => currentToken,
       now: () => currentNow,
       openConfigurationPopup: async () => {
@@ -246,7 +312,7 @@ function createTestDependencies(options: {
         currentToken = token;
         setTokenCalls.push(token);
       },
-      teamConfig,
+      teamConfig: options.teamConfig ?? teamConfig,
       ttlMs: cacheTtlMs,
     },
     setNow: (nextNow) => {

@@ -11,6 +11,9 @@ const placeholderLoginPrefix = "replace-";
  * - Login matching is case-insensitive in domain mapping.
  * - Keep the canonical GitHub login spelling here.
  * - Replace placeholder members with real reviewers before production use.
+ * - Set `canMerge: true` for members allowed to merge into the default branch. This is only a
+ *   fallback: when the token has push access, the live GitHub collaborator lookup takes
+ *   precedence and these flags are ignored.
  */
 export const teamConfig: TeamConfig = {
   frontend: [

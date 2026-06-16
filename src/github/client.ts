@@ -3,17 +3,26 @@ import type {
   GitHubRequestedReviewer,
   GitHubReviewRequestNode,
   GitHubReviewRequestsConnection,
+  NormalizedCollaboratorsPage,
   NormalizedOpenPullRequestsPage,
   OpenPullRequestsGraphqlResponse,
   OpenPullRequestsPageInfo,
   OpenPullRequestsQueryResponse,
   OpenPullRequestsSearchConnection,
   OpenPullRequestsSearchNode,
+  RepositoryCollaboratorEdge,
+  RepositoryCollaboratorNode,
+  RepositoryCollaboratorsConnection,
+  RepositoryCollaboratorsGraphqlResponse,
+  RepositoryCollaboratorsQueryResponse,
 } from "./graphql";
 import {
   OPEN_PULL_REQUESTS_QUERY,
+  REPOSITORY_COLLABORATORS_QUERY,
   createOpenPullRequestsVariables,
+  createRepositoryCollaboratorsVariables,
   normalizeOpenPullRequestsResponse,
+  normalizeRepositoryCollaboratorsResponse,
 } from "./graphql";
 
 /**
@@ -119,6 +128,97 @@ async function fetchOpenPRsPage(
     }
 
     return { ok: true, value: normalizeOpenPullRequestsResponse(payload.data) };
+  } catch {
+    return { ok: false, reason: "NETWORK" };
+  }
+}
+
+/**
+ * Logins that can merge into the default branch, keyed for case-insensitive matching downstream.
+ */
+export type MergeAccessLogins = readonly string[];
+
+/**
+ * Fetch the repository collaborators that can merge into the default branch.
+ *
+ * @remarks
+ * Reading collaborators requires push access to the repository, so tokens without it resolve to
+ * an `AUTH` failure. Callers are expected to fall back to a static configuration in that case
+ * rather than treating the whole review-count fetch as failed.
+ *
+ * @param token - GitHub personal access token; only sent to the GitHub API endpoint.
+ * @param fetchImpl - Optional fetch implementation for tests.
+ * @returns Merge-capable collaborator logins or a typed error reason.
+ */
+export async function fetchMergeAccessLogins(
+  token: string,
+  fetchImpl: GitHubFetch = fetch,
+): Promise<Result<MergeAccessLogins, ErrorReason>> {
+  const logins: string[] = [];
+  let cursor: string | null = null;
+
+  while (true) {
+    const pageResult = await fetchMergeAccessPage(token, cursor, fetchImpl);
+
+    if (!pageResult.ok) {
+      return pageResult;
+    }
+
+    logins.push(...pageResult.value.mergeAccessLogins);
+
+    if (!pageResult.value.pageInfo.hasNextPage) {
+      return { ok: true, value: logins };
+    }
+
+    if (pageResult.value.pageInfo.endCursor === null) {
+      return { ok: false, reason: "NETWORK" };
+    }
+
+    cursor = pageResult.value.pageInfo.endCursor;
+  }
+}
+
+/**
+ * Fetch one collaborators GraphQL page and classify transport or payload failures.
+ */
+async function fetchMergeAccessPage(
+  token: string,
+  cursor: string | null,
+  fetchImpl: GitHubFetch,
+): Promise<Result<NormalizedCollaboratorsPage, ErrorReason>> {
+  try {
+    const response = await fetchImpl(GITHUB_GRAPHQL_ENDPOINT, {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `bearer ${token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        query: REPOSITORY_COLLABORATORS_QUERY,
+        variables: createRepositoryCollaboratorsVariables(cursor),
+      }),
+    });
+
+    if (!response.ok) {
+      return { ok: false, reason: getHttpErrorReason(response) };
+    }
+
+    const payload: unknown = await response.json();
+
+    if (hasRateLimitGraphqlError(payload)) {
+      return { ok: false, reason: "RATE_LIMIT" };
+    }
+
+    if (hasAuthGraphqlError(payload)) {
+      return { ok: false, reason: "AUTH" };
+    }
+
+    if (hasGraphqlErrors(payload) || !isRepositoryCollaboratorsGraphqlResponse(payload)) {
+      return { ok: false, reason: "NETWORK" };
+    }
+
+    return { ok: true, value: normalizeRepositoryCollaboratorsResponse(payload.data) };
   } catch {
     return { ok: false, reason: "NETWORK" };
   }
@@ -267,6 +367,82 @@ function isOpenPullRequestsQueryResponse(value: unknown): value is OpenPullReque
     value !== null &&
     "search" in value &&
     isSearchConnection(value.search)
+  );
+}
+
+/**
+ * Validate the collaborators GraphQL response shape before normalization.
+ */
+function isRepositoryCollaboratorsGraphqlResponse(
+  value: unknown,
+): value is RepositoryCollaboratorsGraphqlResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "data" in value &&
+    isRepositoryCollaboratorsQueryResponse(value.data)
+  );
+}
+
+function isRepositoryCollaboratorsQueryResponse(
+  value: unknown,
+): value is RepositoryCollaboratorsQueryResponse {
+  if (typeof value !== "object" || value === null || !("repository" in value)) {
+    return false;
+  }
+
+  return value.repository === null || isCollaboratorsRepository(value.repository);
+}
+
+function isCollaboratorsRepository(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "collaborators" in value &&
+    isCollaboratorsConnection(value.collaborators)
+  );
+}
+
+function isCollaboratorsConnection(value: unknown): value is RepositoryCollaboratorsConnection {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("pageInfo" in value) ||
+    !("edges" in value) ||
+    !isPageInfo(value.pageInfo)
+  ) {
+    return false;
+  }
+
+  return (
+    value.edges === null ||
+    (isReadonlyUnknownArray(value.edges) && value.edges.every(isCollaboratorEdge))
+  );
+}
+
+function isCollaboratorEdge(value: unknown): value is RepositoryCollaboratorEdge | null {
+  if (value === null) {
+    return true;
+  }
+
+  if (
+    typeof value !== "object" ||
+    !("permission" in value) ||
+    !("node" in value) ||
+    typeof value.permission !== "string"
+  ) {
+    return false;
+  }
+
+  return value.node === null || isCollaboratorNode(value.node);
+}
+
+function isCollaboratorNode(value: unknown): value is RepositoryCollaboratorNode {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "login" in value &&
+    typeof value.login === "string"
   );
 }
 
