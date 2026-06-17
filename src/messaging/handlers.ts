@@ -5,11 +5,14 @@
  * aggregation to team mapping pipeline, and owns the service-worker in-memory review counts cache.
  */
 import { teamConfig as defaultTeamConfig } from "../config/team.config";
-import { aggregate } from "../domain/aggregate";
+import { aggregate, normalizeLogin } from "../domain/aggregate";
 import { mapToTeams } from "../domain/mapping";
 import type { TeamConfig, TeamReviewCounts } from "../domain/types";
-import { fetchOpenPRs as defaultFetchOpenPRs } from "../github";
-import type { ErrorReason, NormalizedPRs, Result } from "../github";
+import {
+  fetchMergeAccessLogins as defaultFetchMergeAccessLogins,
+  fetchOpenPRs as defaultFetchOpenPRs,
+} from "../github";
+import type { ErrorReason, MergeAccessLogins, NormalizedPRs, Result } from "../github";
 import { getToken as defaultGetToken, setToken as defaultSetToken } from "../storage";
 import type { Request, Response, ReviewCountsResponseMetadata } from "./protocol";
 
@@ -25,6 +28,11 @@ export type SetStoredToken = (token: string) => Promise<void>;
 /** Fetches normalized open pull requests with their requested reviewers from GitHub. */
 export type FetchOpenPullRequests = (token: string) => Promise<Result<NormalizedPRs, ErrorReason>>;
 
+/** Fetches the collaborator logins that can merge into the repository default branch. */
+export type FetchMergeAccessLogins = (
+  token: string,
+) => Promise<Result<MergeAccessLogins, ErrorReason>>;
+
 /** Opens the extension-owned configuration popup from the background context. */
 export type OpenConfigurationPopup = () => Promise<void>;
 
@@ -34,6 +42,7 @@ export type MessageHandler = (request: Request) => Promise<Response>;
 /** Dependencies injected by tests; production uses the background-safe defaults. */
 export interface MessageHandlerOptions {
   readonly fetchOpenPRs?: FetchOpenPullRequests;
+  readonly fetchMergeAccessLogins?: FetchMergeAccessLogins;
   readonly getToken?: GetStoredToken;
   readonly now?: () => number;
   readonly openConfigurationPopup?: OpenConfigurationPopup;
@@ -44,6 +53,7 @@ export interface MessageHandlerOptions {
 
 interface MessageHandlerDependencies {
   readonly fetchOpenPRs: FetchOpenPullRequests;
+  readonly fetchMergeAccessLogins: FetchMergeAccessLogins;
   readonly getToken: GetStoredToken;
   readonly now: () => number;
   readonly openConfigurationPopup: OpenConfigurationPopup;
@@ -113,6 +123,7 @@ function shouldServeCachedReviewCounts(
 function createDependencies(options: MessageHandlerOptions): MessageHandlerDependencies {
   return {
     fetchOpenPRs: options.fetchOpenPRs ?? defaultFetchOpenPRs,
+    fetchMergeAccessLogins: options.fetchMergeAccessLogins ?? defaultFetchMergeAccessLogins,
     getToken: options.getToken ?? defaultGetToken,
     now: options.now ?? Date.now,
     openConfigurationPopup: options.openConfigurationPopup ?? noopOpenConfigurationPopup,
@@ -138,7 +149,8 @@ async function fetchReviewCounts(
     return { kind: "ERROR", reason: result.reason };
   }
 
-  const data = mapToTeams(aggregate(result.value), dependencies.teamConfig);
+  const mergeAccessLogins = await resolveMergeAccessLogins(dependencies, token);
+  const data = mapToTeams(aggregate(result.value), dependencies.teamConfig, mergeAccessLogins);
   const meta = {
     fetchedAt: dependencies.now(),
     openPullRequestCount: result.value.length,
@@ -146,6 +158,49 @@ async function fetchReviewCounts(
   writeCache({ data, meta });
 
   return { kind: "REVIEW_COUNTS", data, meta };
+}
+
+/**
+ * Resolve the normalized logins that can merge into the default branch.
+ *
+ * @remarks
+ * The live GitHub lookup is authoritative when it succeeds. When it fails — most commonly because
+ * the configured token lacks the push access needed to read collaborators — the static
+ * `canMerge` flags from the team configuration are used as a graceful fallback.
+ */
+async function resolveMergeAccessLogins(
+  dependencies: MessageHandlerDependencies,
+  token: string,
+): Promise<ReadonlySet<string>> {
+  const result = await dependencies.fetchMergeAccessLogins(token);
+
+  if (result.ok) {
+    return toNormalizedLoginSet(result.value);
+  }
+
+  return configuredMergeAccessLogins(dependencies.teamConfig);
+}
+
+function configuredMergeAccessLogins(teamConfig: TeamConfig): ReadonlySet<string> {
+  const logins = [...teamConfig.frontend, ...teamConfig.backend]
+    .filter((member) => member.canMerge === true)
+    .map((member) => member.login);
+
+  return toNormalizedLoginSet(logins);
+}
+
+function toNormalizedLoginSet(logins: readonly string[]): ReadonlySet<string> {
+  const normalized = new Set<string>();
+
+  for (const login of logins) {
+    const normalizedLogin = normalizeLogin(login);
+
+    if (normalizedLogin.length > 0) {
+      normalized.add(normalizedLogin);
+    }
+  }
+
+  return normalized;
 }
 
 function isCacheFresh(cache: ReviewCountsCacheEntry, currentTime: number, ttlMs: number): boolean {

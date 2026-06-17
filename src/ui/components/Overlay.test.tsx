@@ -14,7 +14,7 @@ const planetImageUrl = "https://example.com/planet.png";
 const position = { right: 24, bottom: 24 };
 const counts = {
   frontend: [
-    { login: "alice-gh", displayName: "Alice", count: 4 },
+    { login: "alice-gh", displayName: "Alice", count: 4, canMerge: true },
     { login: "chloe-gh", displayName: "Chloe", count: 0 },
   ],
   backend: [{ login: "dan-gh", displayName: "Daniel", count: 2 }],
@@ -48,6 +48,14 @@ describe("overlay components", () => {
     expect(container.textContent).toContain("4");
     expect(container.textContent).toContain("12 PR ouvertes · maj il y a 30 s");
     expect(container.querySelector("[title='Charge élevée']")?.className).toContain("badge-hot");
+  });
+
+  it("marks reviewers who can merge into the default branch", () => {
+    const { container } = renderOverlay({ state: "ok" });
+    const markers = container.querySelectorAll("[aria-label='Can merge into the default branch']");
+
+    expect(markers).toHaveLength(1);
+    expect(markers[0]?.className).toContain("bg-[var(--merge-marker)]");
   });
 
   it("renders zero open pull requests with plural wording", () => {

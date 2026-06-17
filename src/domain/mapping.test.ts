@@ -99,6 +99,34 @@ describe("mapToTeams", () => {
     expect(mappedCounts.others).toEqual([]);
   });
 
+  it("flags reviewers in the merge-access set with canMerge across all sections", () => {
+    const counts = new Map([
+      ["alice", 2],
+      ["bob", 1],
+      ["external-reviewer", 3],
+    ]);
+
+    const mappedCounts = mapToTeams(
+      counts,
+      testTeamConfig,
+      new Set(["alice", "external-reviewer"]),
+    );
+
+    expect(mappedCounts.frontend).toContainEqual({
+      login: "alice",
+      displayName: "Alice",
+      count: 2,
+      canMerge: true,
+    });
+    expect(mappedCounts.others).toEqual([
+      { login: "external-reviewer", displayName: "external-reviewer", count: 3, canMerge: true },
+    ]);
+    expect(mappedCounts.frontend.find((member) => member.login === "bob")).not.toHaveProperty(
+      "canMerge",
+    );
+    expect(mappedCounts.backend[0]).not.toHaveProperty("canMerge");
+  });
+
   it("normalizes and merges count keys before mapping", () => {
     const counts = new Map([
       ["alice", 1],

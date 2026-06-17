@@ -3,9 +3,36 @@ import type { PullRequestReviewRequests, RequestedReviewer } from "../domain/agg
 const graphql = String.raw;
 
 /**
+ * Owner of the product's fixed target repository.
+ *
+ * @remarks Keep in sync with {@link OPEN_PULL_REQUESTS_SEARCH_QUERY}.
+ */
+export const TARGET_REPOSITORY_OWNER = "vatesfr";
+
+/**
+ * Name of the product's fixed target repository.
+ *
+ * @remarks Keep in sync with {@link OPEN_PULL_REQUESTS_SEARCH_QUERY}.
+ */
+export const TARGET_REPOSITORY_NAME = "xen-orchestra";
+
+/**
  * GitHub search query for the product's fixed target repository.
  */
 export const OPEN_PULL_REQUESTS_SEARCH_QUERY = "repo:vatesfr/xen-orchestra is:pr is:open";
+
+/**
+ * Repository collaborator permissions that grant the ability to merge into the default branch.
+ *
+ * @remarks
+ * GitHub's `RepositoryPermission` enum exposes READ, TRIAGE, WRITE, MAINTAIN, and ADMIN. Only
+ * WRITE and above can merge pull requests, so READ and TRIAGE collaborators are excluded.
+ */
+export const MERGE_ACCESS_PERMISSIONS: ReadonlySet<string> = new Set([
+  "WRITE",
+  "MAINTAIN",
+  "ADMIN",
+]);
 
 /**
  * GraphQL query that fetches open pull requests and their requested user reviewers.
@@ -213,4 +240,137 @@ function isUserReviewer(
   reviewer: GitHubRequestedReviewer | null | undefined,
 ): reviewer is GitHubUserReviewer {
   return reviewer?.__typename === "User" && typeof reviewer.login === "string";
+}
+
+/**
+ * GraphQL query that fetches repository collaborators and their effective permission.
+ *
+ * @remarks
+ * Reading the `collaborators` connection requires push access to the repository. Tokens without it
+ * receive a FORBIDDEN-style error, which the client surfaces so callers can fall back to config.
+ */
+export const REPOSITORY_COLLABORATORS_QUERY = graphql`
+  query RepositoryCollaborators($owner: String!, $name: String!, $cursor: String) {
+    repository(owner: $owner, name: $name) {
+      collaborators(first: 100, after: $cursor) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          permission
+          node {
+            login
+          }
+        }
+      }
+    }
+  }
+`;
+
+/**
+ * Variables for the repository collaborators GraphQL query.
+ */
+export interface RepositoryCollaboratorsQueryVariables {
+  readonly owner: string;
+  readonly name: string;
+  readonly cursor: string | null;
+}
+
+/**
+ * Top-level GitHub GraphQL response payload for the repository collaborators query.
+ */
+export interface RepositoryCollaboratorsGraphqlResponse {
+  readonly data: RepositoryCollaboratorsQueryResponse;
+}
+
+/**
+ * Typed data shape returned by the repository collaborators query.
+ */
+export interface RepositoryCollaboratorsQueryResponse {
+  readonly repository: RepositoryCollaboratorsRepository | null;
+}
+
+/**
+ * Repository wrapper holding the collaborators connection.
+ */
+export interface RepositoryCollaboratorsRepository {
+  readonly collaborators: RepositoryCollaboratorsConnection;
+}
+
+/**
+ * Collaborators connection with pagination and permission-bearing edges.
+ */
+export interface RepositoryCollaboratorsConnection {
+  readonly pageInfo: OpenPullRequestsPageInfo;
+  readonly edges: readonly (RepositoryCollaboratorEdge | null)[] | null;
+}
+
+/**
+ * Collaborator edge pairing a user node with its repository permission.
+ */
+export interface RepositoryCollaboratorEdge {
+  readonly permission: string;
+  readonly node: RepositoryCollaboratorNode | null;
+}
+
+/**
+ * Collaborator user node exposing the login used for matching.
+ */
+export interface RepositoryCollaboratorNode {
+  readonly login: string;
+}
+
+/**
+ * Normalized collaborators page consumed by the merge-access lookup.
+ */
+export interface NormalizedCollaboratorsPage {
+  readonly pageInfo: OpenPullRequestsPageInfo;
+  readonly mergeAccessLogins: readonly string[];
+}
+
+/**
+ * Create variables for the repository collaborators GraphQL query.
+ *
+ * @param cursor - Optional collaborators pagination cursor.
+ * @returns Query variables targeting the fixed product repository.
+ */
+export function createRepositoryCollaboratorsVariables(
+  cursor: string | null = null,
+): RepositoryCollaboratorsQueryVariables {
+  return {
+    owner: TARGET_REPOSITORY_OWNER,
+    name: TARGET_REPOSITORY_NAME,
+    cursor,
+  };
+}
+
+/**
+ * Normalize collaborators into the logins that can merge while preserving pagination.
+ *
+ * @param response - Typed GraphQL response data.
+ * @returns Logins with merge-capable permission and the page cursor state.
+ */
+export function normalizeRepositoryCollaboratorsResponse(
+  response: RepositoryCollaboratorsQueryResponse,
+): NormalizedCollaboratorsPage {
+  const connection = response.repository?.collaborators;
+
+  if (connection === undefined) {
+    return { pageInfo: { hasNextPage: false, endCursor: null }, mergeAccessLogins: [] };
+  }
+
+  const mergeAccessLogins: string[] = [];
+
+  for (const edge of connection.edges ?? []) {
+    if (edge === null || edge.node === null) {
+      continue;
+    }
+
+    if (MERGE_ACCESS_PERMISSIONS.has(edge.permission.toUpperCase())) {
+      mergeAccessLogins.push(edge.node.login);
+    }
+  }
+
+  return { pageInfo: connection.pageInfo, mergeAccessLogins };
 }
