@@ -23,10 +23,10 @@ export const teamConfig: TeamConfig = {
     { login: "pdonias", displayName: "Pierre Donias" },
     { login: "UnelDev", displayName: "Énée Di Iorio" },
     { login: "Elise-FZI", displayName: "Elise Franzini" },
-    { login: "pierre-briffaux", displayName: "Pierre Briffaux" },
     { login: "sylvere-a", displayName: "Sylvère Armange" },
     { login: "sandrine-bd", displayName: "Sandrine Barrucand" },
-    { login: "Marie-Garde", displayName: "Marie Garde" },
+    { login: "MarieGarde", displayName: "Marie Garde" },
+    { login: "AlineD-2912", displayName: "Aline Dvornyk" },
   ],
   backend: [
     { login: "b-Nollet", displayName: "Bastien Nollet" },
@@ -36,6 +36,7 @@ export const teamConfig: TeamConfig = {
     { login: "mpiton", displayName: "Mathieu Piton" },
     { login: "spacotte-vates", displayName: "Simon Pacotte" },
     { login: "All-Ki", displayName: "Killian Allegrain" },
+    { login: "ayoub-el-kajji-v", displayName: "Ayoub El Kajji" },
   ],
 };
 
