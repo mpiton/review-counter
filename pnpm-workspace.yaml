@@ -1,0 +1,7 @@
+overrides:
+  shell-quote@<1.9.0: ^1.9.0
+  adm-zip@<0.6.0: ^0.6.0
+  brace-expansion@<1.1.16: ^1.1.16
+  esbuild@<0.28.1: ">=0.28.1"
+  tmp@<0.2.6: ">=0.2.6"
+  uuid@<11.1.1: ">=11.1.1"
