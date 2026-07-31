@@ -27,6 +27,8 @@ export const teamConfig: TeamConfig = {
     { login: "sandrine-bd", displayName: "Sandrine Barrucand" },
     { login: "MarieGarde", displayName: "Marie Garde" },
     { login: "AlineD-2912", displayName: "Aline Dvornyk" },
+    { login: "ByScripts", displayName: "Thierry" },
+    { login: "amouillard-vates", displayName: "Alexandre" },
   ],
   backend: [
     { login: "b-Nollet", displayName: "Bastien Nollet" },
