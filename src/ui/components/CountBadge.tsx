@@ -43,7 +43,7 @@ function getBadgeTitle(count: number, isHot: boolean): string {
   return count === 0 ? "Aucune review en attente" : `${count} en attente`;
 }
 
-function getBadgeLabel(count: number, isHot: boolean): string {
+export function getBadgeLabel(count: number, isHot: boolean): string {
   if (count === 0) {
     return "Aucune review en attente";
   }

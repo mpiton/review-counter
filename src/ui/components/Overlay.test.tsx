@@ -158,6 +158,46 @@ describe("overlay components", () => {
     expect(refreshIcon?.className).not.toContain("animate-spin");
   });
 
+  it("names each row after the reviewer it copies", () => {
+    const { container } = renderOverlay({ state: "ok" });
+
+    expect(getButton(container, "alice-gh").getAttribute("aria-label")).toBe(
+      "Alice, alice-gh, 4 reviews en attente, charge élevée, peut merger. Copier le login.",
+    );
+    expect(getButton(container, "dan-gh").getAttribute("aria-label")).toBe(
+      "Daniel, dan-gh, 2 reviews en attente. Copier le login.",
+    );
+  });
+
+  it("copies a reviewer login on click and confirms it briefly", async () => {
+    vi.useFakeTimers();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+    const { container } = renderOverlay({ state: "ok" });
+
+    clickButton(container, "alice-gh");
+    await flushMicrotasks();
+
+    expect(writeText).toHaveBeenCalledWith("alice-gh");
+    expect(container.textContent).toContain("Copié !");
+    expect(container.querySelector("[role='status']")?.textContent).toBe("Login alice-gh copié");
+
+    act(() => vi.advanceTimersByTime(1200));
+
+    expect(container.textContent).not.toContain("Copié !");
+    expect(container.textContent).toContain("alice-gh");
+  });
+
+  it("keeps the login visible when the clipboard write is rejected", async () => {
+    vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
+    const { container } = renderOverlay({ state: "ok" });
+
+    clickButton(container, "dan-gh");
+    await flushMicrotasks();
+
+    expect(container.textContent).not.toContain("Copié !");
+    expect(container.textContent).toContain("dan-gh");
+  });
+
   it("renders the collapsed launcher count and alert marker", () => {
     const { container, root } = render(
       <PlanetButton
