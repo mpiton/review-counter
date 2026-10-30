@@ -7,7 +7,8 @@
 import { teamConfig as defaultTeamConfig } from "../config/team.config";
 import { aggregate, normalizeLogin } from "../domain/aggregate";
 import { mapToTeams } from "../domain/mapping";
-import type { TeamConfig, TeamReviewCounts } from "../domain/types";
+import { selectMyReviews } from "../domain/myReviews";
+import type { MyReviews, TeamConfig, TeamReviewCounts } from "../domain/types";
 import {
   fetchMergeAccessLogins as defaultFetchMergeAccessLogins,
   fetchOpenPRs as defaultFetchOpenPRs,
@@ -64,6 +65,7 @@ interface MessageHandlerDependencies {
 
 interface ReviewCountsCacheEntry {
   readonly data: TeamReviewCounts;
+  readonly myReviews: MyReviews;
   readonly meta: ReviewCountsResponseMetadata;
 }
 
@@ -73,9 +75,27 @@ type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_
 export function createMessageHandler(options: MessageHandlerOptions = {}): MessageHandler {
   const dependencies = createDependencies(options);
   let cache: ReviewCountsCacheEntry | null = null;
+  let tokenGeneration = 0;
 
-  function invalidateCache(): void {
+  function markTokenChanged(): void {
+    tokenGeneration += 1;
     cache = null;
+  }
+
+  /** Refetch when the token changes mid-flight, so one account's reviews never reach another. */
+  async function fetchForCurrentToken(): Promise<Response> {
+    const generation = tokenGeneration;
+    const response = await fetchReviewCounts(dependencies);
+
+    if (generation !== tokenGeneration) {
+      return fetchForCurrentToken();
+    }
+
+    if (response.kind === "REVIEW_COUNTS") {
+      cache = response;
+    }
+
+    return response;
   }
 
   return async (request) => {
@@ -84,19 +104,25 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
         return { kind: "TOKEN", token: await dependencies.getToken() };
 
       case "SET_TOKEN":
+        // Before the write: stop serving the previous account. After it: drop fetches that started
+        // during the write, since they may have read the previous token.
+        markTokenChanged();
         await dependencies.setToken(request.token);
-        invalidateCache();
+        markTokenChanged();
 
         return { kind: "OK" };
 
       case "FETCH_REVIEW_COUNTS":
         if (shouldServeCachedReviewCounts(request, cache, dependencies)) {
-          return { kind: "REVIEW_COUNTS", data: cache.data, meta: cache.meta };
+          return {
+            kind: "REVIEW_COUNTS",
+            data: cache.data,
+            myReviews: cache.myReviews,
+            meta: cache.meta,
+          };
         }
 
-        return fetchReviewCounts(dependencies, (entry) => {
-          cache = entry;
-        });
+        return fetchForCurrentToken();
 
       case "OPEN_CONFIGURATION":
         return handleOpenConfigurationPopup(dependencies);
@@ -133,10 +159,7 @@ function createDependencies(options: MessageHandlerOptions): MessageHandlerDepen
   };
 }
 
-async function fetchReviewCounts(
-  dependencies: MessageHandlerDependencies,
-  writeCache: (entry: ReviewCountsCacheEntry) => void,
-): Promise<Response> {
+async function fetchReviewCounts(dependencies: MessageHandlerDependencies): Promise<Response> {
   const token = await dependencies.getToken();
 
   if (token === null) {
@@ -150,14 +173,15 @@ async function fetchReviewCounts(
   }
 
   const mergeAccessLogins = await resolveMergeAccessLogins(dependencies, token);
-  const data = mapToTeams(aggregate(result.value), dependencies.teamConfig, mergeAccessLogins);
+  const { pullRequests, viewerLogin } = result.value;
+  const data = mapToTeams(aggregate(pullRequests), dependencies.teamConfig, mergeAccessLogins);
+  const myReviews = selectMyReviews(pullRequests, viewerLogin);
   const meta = {
     fetchedAt: dependencies.now(),
-    openPullRequestCount: result.value.length,
+    openPullRequestCount: pullRequests.length,
   } satisfies ReviewCountsResponseMetadata;
-  writeCache({ data, meta });
 
-  return { kind: "REVIEW_COUNTS", data, meta };
+  return { kind: "REVIEW_COUNTS", data, myReviews, meta };
 }
 
 /**

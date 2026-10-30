@@ -1,4 +1,4 @@
-import type { PullRequestReviewRequests } from "../domain/aggregate";
+import type { OpenPullRequest } from "../domain/myReviews";
 import type {
   GitHubRequestedReviewer,
   GitHubReviewRequestNode,
@@ -11,7 +11,6 @@ import type {
   OpenPullRequestsSearchConnection,
   OpenPullRequestsSearchNode,
   RepositoryCollaboratorEdge,
-  RepositoryCollaboratorNode,
   RepositoryCollaboratorsConnection,
   RepositoryCollaboratorsGraphqlResponse,
   RepositoryCollaboratorsQueryResponse,
@@ -43,9 +42,12 @@ export type Result<TValue, TError> =
   | { readonly ok: false; readonly reason: TError };
 
 /**
- * Normalized open pull requests consumed by the aggregation layer.
+ * Token owner and normalized open pull requests consumed by the domain layer.
  */
-export type NormalizedPRs = readonly PullRequestReviewRequests[];
+export interface NormalizedPRs {
+  readonly viewerLogin: string;
+  readonly pullRequests: readonly OpenPullRequest[];
+}
 
 /**
  * Fetch-compatible implementation injected by tests.
@@ -63,7 +65,7 @@ export async function fetchOpenPRs(
   token: string,
   fetchImpl: GitHubFetch = fetch,
 ): Promise<Result<NormalizedPRs, ErrorReason>> {
-  const pullRequests: PullRequestReviewRequests[] = [];
+  const pullRequests: OpenPullRequest[] = [];
   let cursor: string | null = null;
 
   while (true) {
@@ -76,7 +78,7 @@ export async function fetchOpenPRs(
     pullRequests.push(...pageResult.value.pullRequests);
 
     if (!pageResult.value.pageInfo.hasNextPage) {
-      return { ok: true, value: pullRequests };
+      return { ok: true, value: { viewerLogin: pageResult.value.viewerLogin, pullRequests } };
     }
 
     if (pageResult.value.pageInfo.endCursor === null) {
@@ -365,7 +367,9 @@ function isOpenPullRequestsQueryResponse(value: unknown): value is OpenPullReque
   return (
     typeof value === "object" &&
     value !== null &&
+    "viewer" in value &&
     "search" in value &&
+    hasStringLogin(value.viewer) &&
     isSearchConnection(value.search)
   );
 }
@@ -434,16 +438,7 @@ function isCollaboratorEdge(value: unknown): value is RepositoryCollaboratorEdge
     return false;
   }
 
-  return value.node === null || isCollaboratorNode(value.node);
-}
-
-function isCollaboratorNode(value: unknown): value is RepositoryCollaboratorNode {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "login" in value &&
-    typeof value.login === "string"
-  );
+  return value.node === null || hasStringLogin(value.node);
 }
 
 function isSearchConnection(value: unknown): value is OpenPullRequestsSearchConnection {
@@ -492,9 +487,28 @@ function isSearchNode(value: unknown): value is OpenPullRequestsSearchNode | nul
 
   return (
     "number" in value &&
+    "title" in value &&
+    "url" in value &&
+    "createdAt" in value &&
+    "isDraft" in value &&
+    "author" in value &&
     "reviewRequests" in value &&
     typeof value.number === "number" &&
+    typeof value.title === "string" &&
+    typeof value.url === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.isDraft === "boolean" &&
+    (value.author === null || hasStringLogin(value.author)) &&
     isReviewRequestsConnection(value.reviewRequests)
+  );
+}
+
+function hasStringLogin(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "login" in value &&
+    typeof value.login === "string"
   );
 }
 

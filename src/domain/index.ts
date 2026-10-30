@@ -1,4 +1,6 @@
 export type {
+  MyReviewPullRequest,
+  MyReviews,
   ReviewCount,
   ReviewCountSection,
   TeamConfig,

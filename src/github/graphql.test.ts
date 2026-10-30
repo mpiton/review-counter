@@ -35,8 +35,17 @@ describe("GitHub GraphQL open pull requests query", () => {
     expect(OPEN_PULL_REQUESTS_QUERY).toContain("login");
   });
 
-  it("normalizes a typed response into aggregate input and exposes pagination", () => {
+  it("requests the token owner and the pull request fields shown to the viewer", () => {
+    expect(OPEN_PULL_REQUESTS_QUERY).toMatch(/viewer\s*\{\s*login\s*\}/);
+
+    for (const field of ["title", "url", "createdAt", "isDraft", "author {"]) {
+      expect(OPEN_PULL_REQUESTS_QUERY).toContain(field);
+    }
+  });
+
+  it("normalizes a typed response into domain input and exposes pagination", () => {
     const response: OpenPullRequestsQueryResponse = {
+      viewer: { login: "Me" },
       search: {
         pageInfo: {
           hasNextPage: true,
@@ -46,6 +55,11 @@ describe("GitHub GraphQL open pull requests query", () => {
           {
             __typename: "PullRequest",
             number: 42,
+            title: "feat: first",
+            url: "https://github.com/vatesfr/xen-orchestra/pull/42",
+            createdAt: "2026-10-01T10:00:00Z",
+            isDraft: false,
+            author: { login: "bob" },
             reviewRequests: {
               nodes: [
                 { requestedReviewer: { __typename: "User", login: "Alice" } },
@@ -58,6 +72,11 @@ describe("GitHub GraphQL open pull requests query", () => {
           {
             __typename: "PullRequest",
             number: 43,
+            title: "fix: second",
+            url: "https://github.com/vatesfr/xen-orchestra/pull/43",
+            createdAt: "2026-10-02T10:00:00Z",
+            isDraft: true,
+            author: null,
             reviewRequests: {
               nodes: null,
             },
@@ -73,12 +92,33 @@ describe("GitHub GraphQL open pull requests query", () => {
         hasNextPage: true,
         endCursor: "cursor-2",
       },
-      pullRequests: [{ reviewRequests: [{ login: "Alice" }] }, { reviewRequests: [] }],
+      viewerLogin: "Me",
+      pullRequests: [
+        {
+          number: 42,
+          title: "feat: first",
+          filesUrl: "https://github.com/vatesfr/xen-orchestra/pull/42/files",
+          createdAt: "2026-10-01T10:00:00Z",
+          isDraft: false,
+          authorLogin: "bob",
+          reviewRequests: [{ login: "Alice" }],
+        },
+        {
+          number: 43,
+          title: "fix: second",
+          filesUrl: "https://github.com/vatesfr/xen-orchestra/pull/43/files",
+          createdAt: "2026-10-02T10:00:00Z",
+          isDraft: true,
+          authorLogin: null,
+          reviewRequests: [],
+        },
+      ],
     });
   });
 
   it("normalizes an empty search result without dropping pagination", () => {
     const response: OpenPullRequestsQueryResponse = {
+      viewer: { login: "me" },
       search: {
         pageInfo: {
           hasNextPage: false,
@@ -93,12 +133,14 @@ describe("GitHub GraphQL open pull requests query", () => {
         hasNextPage: false,
         endCursor: null,
       },
+      viewerLogin: "me",
       pullRequests: [],
     });
   });
 
   it("ignores pages without pull request nodes", () => {
     const response: OpenPullRequestsQueryResponse = {
+      viewer: { login: "me" },
       search: {
         pageInfo: {
           hasNextPage: true,
@@ -113,6 +155,7 @@ describe("GitHub GraphQL open pull requests query", () => {
         hasNextPage: true,
         endCursor: "cursor-without-prs",
       },
+      viewerLogin: "me",
       pullRequests: [],
     });
   });

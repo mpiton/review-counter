@@ -34,3 +34,26 @@ export interface TeamReviewCounts {
   backend: ReviewCount[];
   others: ReviewCount[];
 }
+
+/**
+ * Open pull request waiting for a review from the connected user.
+ */
+export interface MyReviewPullRequest {
+  readonly number: number;
+  readonly title: string;
+  /** GitHub page opening the pull request diff, where the review happens. */
+  readonly filesUrl: string;
+  /** ISO 8601 UTC creation date, as returned by GitHub. */
+  readonly createdAt: string;
+  readonly isDraft: boolean;
+  /** `null` when the author's GitHub account no longer exists. */
+  readonly authorLogin: string | null;
+}
+
+/**
+ * Reviews the connected user (the token owner) has to handle, most urgent first.
+ */
+export interface MyReviews {
+  readonly viewerLogin: string;
+  readonly pullRequests: readonly MyReviewPullRequest[];
+}

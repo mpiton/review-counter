@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { TeamReviewCounts } from "../../domain";
+import type { MyReviews, TeamReviewCounts } from "../../domain";
 import type { MessageErrorReason, Request, Response } from "../../messaging";
 import type { ReviewCountsResponseMetadata } from "../../messaging";
 
@@ -50,6 +50,25 @@ const refreshedMeta = {
   openPullRequestCount: 6,
 } satisfies ReviewCountsResponseMetadata;
 
+const myReviews = {
+  viewerLogin: "me",
+  pullRequests: [
+    {
+      number: 1,
+      title: "feat: add something",
+      filesUrl: "https://github.com/vatesfr/xen-orchestra/pull/1/files",
+      createdAt: "2026-10-01T10:00:00Z",
+      isDraft: false,
+      authorLogin: "author",
+    },
+  ],
+} satisfies MyReviews;
+
+const refreshedMyReviews = {
+  viewerLogin: "me",
+  pullRequests: [],
+} satisfies MyReviews;
+
 describe("useReviewCounts", () => {
   beforeEach(() => {
     messagingMock.sendMessage.mockReset();
@@ -65,6 +84,7 @@ describe("useReviewCounts", () => {
     messagingMock.sendMessage.mockResolvedValueOnce({
       kind: "REVIEW_COUNTS",
       data: initialCounts,
+      myReviews,
       meta: initialMeta,
     });
 
@@ -73,6 +93,7 @@ describe("useReviewCounts", () => {
     await waitFor(() => {
       expect(rendered.current.status).toBe("success");
       expect(rendered.current.data).toEqual(initialCounts);
+      expect(rendered.current.myReviews).toEqual(myReviews);
       expect(rendered.current.meta).toEqual(initialMeta);
       expect(rendered.current.error).toBeNull();
     });
@@ -82,8 +103,18 @@ describe("useReviewCounts", () => {
 
   it("refreshes with force true and exposes the refreshed data", async () => {
     messagingMock.sendMessage
-      .mockResolvedValueOnce({ kind: "REVIEW_COUNTS", data: initialCounts, meta: initialMeta })
-      .mockResolvedValueOnce({ kind: "REVIEW_COUNTS", data: refreshedCounts, meta: refreshedMeta });
+      .mockResolvedValueOnce({
+        kind: "REVIEW_COUNTS",
+        data: initialCounts,
+        myReviews,
+        meta: initialMeta,
+      })
+      .mockResolvedValueOnce({
+        kind: "REVIEW_COUNTS",
+        data: refreshedCounts,
+        myReviews: refreshedMyReviews,
+        meta: refreshedMeta,
+      });
 
     const rendered = renderUseReviewCounts();
 
@@ -99,6 +130,7 @@ describe("useReviewCounts", () => {
     await waitFor(() => {
       expect(rendered.current.status).toBe("success");
       expect(rendered.current.data).toEqual(refreshedCounts);
+      expect(rendered.current.myReviews).toEqual(refreshedMyReviews);
       expect(rendered.current.meta).toEqual(refreshedMeta);
     });
     expect(messagingMock.sendMessage).toHaveBeenCalledTimes(2);
@@ -110,7 +142,12 @@ describe("useReviewCounts", () => {
 
   it("does not reject refresh when the forced refetch fails", async () => {
     messagingMock.sendMessage
-      .mockResolvedValueOnce({ kind: "REVIEW_COUNTS", data: initialCounts, meta: initialMeta })
+      .mockResolvedValueOnce({
+        kind: "REVIEW_COUNTS",
+        data: initialCounts,
+        myReviews,
+        meta: initialMeta,
+      })
       .mockResolvedValueOnce({ kind: "ERROR", reason: "AUTH" });
 
     const rendered = renderUseReviewCounts();

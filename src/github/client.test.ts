@@ -76,6 +76,7 @@ function createOpenPullRequestsPage(
 ): OpenPullRequestsGraphqlResponse {
   return {
     data: {
+      viewer: { login: "me" },
       search: {
         pageInfo: {
           hasNextPage,
@@ -85,6 +86,11 @@ function createOpenPullRequestsPage(
           {
             __typename: "PullRequest",
             number: 42,
+            title: "feat: add something",
+            url: "https://github.com/vatesfr/xen-orchestra/pull/42",
+            createdAt: "2026-10-01T10:00:00Z",
+            isDraft: false,
+            author: { login: "author" },
             reviewRequests: {
               nodes: [{ requestedReviewer: { __typename: "User", login: reviewerLogin } }],
             },
@@ -93,6 +99,18 @@ function createOpenPullRequestsPage(
       },
     },
   } satisfies OpenPullRequestsGraphqlResponse;
+}
+
+function createNormalizedPullRequest(reviewerLogin: string) {
+  return {
+    number: 42,
+    title: "feat: add something",
+    filesUrl: "https://github.com/vatesfr/xen-orchestra/pull/42/files",
+    createdAt: "2026-10-01T10:00:00Z",
+    isDraft: false,
+    authorLogin: "author",
+    reviewRequests: [{ login: reviewerLogin }],
+  };
 }
 
 describe("fetchOpenPRs", () => {
@@ -105,7 +123,7 @@ describe("fetchOpenPRs", () => {
 
     expect(result).toEqual({
       ok: true,
-      value: [{ reviewRequests: [{ login: "alice" }] }],
+      value: { viewerLogin: "me", pullRequests: [createNormalizedPullRequest("alice")] },
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.input).toBe(GITHUB_GRAPHQL_ENDPOINT);
@@ -204,7 +222,10 @@ describe("fetchOpenPRs", () => {
 
     expect(result).toEqual({
       ok: true,
-      value: [{ reviewRequests: [{ login: "alice" }] }, { reviewRequests: [{ login: "bob" }] }],
+      value: {
+        viewerLogin: "me",
+        pullRequests: [createNormalizedPullRequest("alice"), createNormalizedPullRequest("bob")],
+      },
     });
     expect(calls).toHaveLength(2);
     expect(calls[1]?.init?.body).toBe(
@@ -213,6 +234,19 @@ describe("fetchOpenPRs", () => {
         variables: createOpenPullRequestsVariables("cursor-2"),
       }),
     );
+  });
+
+  it("returns NETWORK when the viewer is missing from the payload", async () => {
+    const { fetchImpl } = createFetchMock([
+      createJsonResponse({
+        data: { search: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } },
+      }),
+    ]);
+
+    await expect(fetchOpenPRs("secret-token", fetchImpl)).resolves.toEqual({
+      ok: false,
+      reason: "NETWORK",
+    });
   });
 
   it("does not log the token while fetching pull requests", async () => {

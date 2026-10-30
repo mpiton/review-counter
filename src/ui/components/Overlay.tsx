@@ -1,11 +1,11 @@
 import type { PointerEvent } from "react";
 import { useEffect, useRef } from "react";
-import type { TeamReviewCounts } from "../../domain";
+import type { MyReviews, TeamReviewCounts } from "../../domain";
 import { LoadingSections } from "./LoadingSections";
 import { OverlayFooter } from "./OverlayFooter";
 import { OverlayHeader } from "./OverlayHeader";
 import { OverlayState } from "./OverlayState";
-import { Section } from "./Section";
+import { ReviewSections } from "./ReviewSections";
 import { getBodyPaddingClassName, getDegradedState } from "./overlayHelpers";
 import type { OverlayDensity, OverlayPosition, OverlayStateKind } from "./types";
 import { DEFAULT_REFRESH_SPINNER_RESET_DELAY_MS, useRefreshSpinner } from "./useRefreshSpinner";
@@ -15,6 +15,7 @@ interface OverlayProps {
   readonly data: TeamReviewCounts | undefined;
   readonly density?: OverlayDensity;
   readonly freshness: string | undefined;
+  readonly myReviews: MyReviews | undefined;
   readonly onClose: () => void;
   readonly onOpenConfiguration: () => void;
   readonly onPositionChange: (position: OverlayPosition) => void;
@@ -32,6 +33,7 @@ export function Overlay({
   data,
   density = "regular",
   freshness,
+  myReviews,
   onClose,
   onOpenConfiguration,
   onPositionChange,
@@ -118,18 +120,8 @@ export function Overlay({
       />
       <div className={`flex-1 overflow-y-auto ${getBodyPaddingClassName(density)}`}>
         {isLoading ? <LoadingSections /> : null}
-        {state === "ok" && data !== undefined ? (
-          <>
-            <Section
-              label="FRONTEND"
-              members={data.frontend}
-              threshold={threshold}
-              tone="frontend"
-            />
-            <Section label="BACKEND" members={data.backend} threshold={threshold} tone="backend" />
-            <Section label="AUTRES" members={data.others} threshold={threshold} tone="muted" />
-            <div className="h-1.5" />
-          </>
+        {state === "ok" && data !== undefined && myReviews !== undefined ? (
+          <ReviewSections data={data} myReviews={myReviews} threshold={threshold} />
         ) : null}
         {degradedState === null ? null : (
           <OverlayState

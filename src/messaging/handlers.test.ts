@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PullRequestReviewRequests } from "../domain/aggregate";
 import type { TeamConfig, TeamReviewCounts } from "../domain/types";
-import type { ErrorReason, Result } from "../github";
+import type { ErrorReason, NormalizedPRs, Result } from "../github";
 import { createMessageHandler } from "./handlers";
 import type {
   FetchMergeAccessLogins,
@@ -92,12 +92,102 @@ describe("background message handlers", () => {
         backend: [{ login: "bob", displayName: "Bob Backend", count: 0 }],
         others: [{ login: "unknown-reviewer", displayName: "unknown-reviewer", count: 1 }],
       } satisfies TeamReviewCounts,
+      myReviews: { viewerLogin: "me", pullRequests: [] },
       meta: {
         fetchedAt: 0,
         openPullRequestCount: 2,
       } satisfies ReviewCountsResponseMetadata,
     });
     expect(dependencies.fetchCalls).toEqual(["secret-token"]);
+  });
+
+  it("exposes the viewer's reviews and serves them again from the cache", async () => {
+    const dependencies = createTestDependencies({
+      token: "secret-token",
+      fetchResults: [
+        okResult([{ reviewRequests: [{ login: "alice" }] }, { reviewRequests: [{ login: "ME" }] }]),
+      ],
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+    const expectedMyReviews = {
+      myReviews: { viewerLogin: "me", pullRequests: [{ number: 2 }] },
+    };
+
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject(
+      expectedMyReviews,
+    );
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject(
+      expectedMyReviews,
+    );
+    expect(dependencies.fetchCalls).toEqual(["secret-token"]);
+  });
+
+  it("discards a pending fetch when the token changes and refetches with the new token", async () => {
+    let resolvePreviousFetch: (result: Result<NormalizedPRs, ErrorReason>) => void = () =>
+      undefined;
+    const previousFetch = new Promise<Result<NormalizedPRs, ErrorReason>>((resolve) => {
+      resolvePreviousFetch = resolve;
+    });
+    const dependencies = createTestDependencies({
+      token: "previous-token",
+      fetchResults: [previousFetch, okResult([{ reviewRequests: [{ login: "bob" }] }])],
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+    const newAccountCounts = { frontend: [{ count: 0 }], backend: [{ count: 1 }], others: [] };
+
+    const pendingResponse = handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+    await handleMessage({ kind: "SET_TOKEN", token: "new-token" });
+    resolvePreviousFetch(okResult([{ reviewRequests: [{ login: "alice" }] }]));
+
+    await expect(pendingResponse).resolves.toMatchObject({ data: newAccountCounts });
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject({
+      data: newAccountCounts,
+    });
+    expect(dependencies.fetchCalls).toEqual(["previous-token", "new-token"]);
+  });
+
+  it("stops serving the previous account while the new token is being written", async () => {
+    let resolvePreviousFetch: (result: Result<NormalizedPRs, ErrorReason>) => void = () =>
+      undefined;
+    const previousFetch = new Promise<Result<NormalizedPRs, ErrorReason>>((resolve) => {
+      resolvePreviousFetch = resolve;
+    });
+    let releaseTokenWrite: () => void = () => undefined;
+    const tokenWrite = new Promise<void>((resolve) => {
+      releaseTokenWrite = resolve;
+    });
+    const dependencies = createTestDependencies({
+      token: "previous-token",
+      fetchResults: [
+        okResult([{ reviewRequests: [{ login: "alice" }] }]),
+        previousFetch,
+        okResult([{ reviewRequests: [{ login: "bob" }] }]),
+      ],
+    });
+    const handleMessage = createMessageHandler({
+      ...dependencies.options,
+      setToken: async (token) => {
+        await tokenWrite;
+        await dependencies.options.setToken?.(token);
+      },
+    });
+    const newAccountCounts = { frontend: [{ count: 0 }], backend: [{ count: 1 }], others: [] };
+
+    await handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+    const pendingWrite = handleMessage({ kind: "SET_TOKEN", token: "new-token" });
+    const responseDuringWrite = handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+    await vi.waitFor(() => {
+      expect(dependencies.fetchCalls).toEqual(["previous-token", "previous-token"]);
+    });
+    releaseTokenWrite();
+    await pendingWrite;
+    resolvePreviousFetch(okResult([{ reviewRequests: [{ login: "alice" }] }]));
+
+    await expect(responseDuringWrite).resolves.toMatchObject({ data: newAccountCounts });
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject({
+      data: newAccountCounts,
+    });
+    expect(dependencies.fetchCalls).toEqual(["previous-token", "previous-token", "new-token"]);
   });
 
   it("marks reviewers with live merge access and leaves the rest unflagged", async () => {
@@ -252,7 +342,10 @@ describe("background message handlers", () => {
 
 function createTestDependencies(options: {
   readonly token: string | null;
-  readonly fetchResults?: readonly Result<readonly PullRequestReviewRequests[], ErrorReason>[];
+  readonly fetchResults?: readonly (
+    | Result<NormalizedPRs, ErrorReason>
+    | Promise<Result<NormalizedPRs, ErrorReason>>
+  )[];
   readonly mergeAccessResult?: Result<readonly string[], ErrorReason>;
   readonly teamConfig?: TeamConfig;
   readonly openConfigurationError?: Error;
@@ -323,13 +416,25 @@ function createTestDependencies(options: {
 }
 
 function okResult(
-  value: readonly PullRequestReviewRequests[],
-): Result<readonly PullRequestReviewRequests[], ErrorReason> {
-  return { ok: true, value };
+  pullRequests: readonly PullRequestReviewRequests[],
+): Result<NormalizedPRs, ErrorReason> {
+  return {
+    ok: true,
+    value: {
+      viewerLogin: "me",
+      pullRequests: pullRequests.map((pullRequest, index) => ({
+        number: index + 1,
+        title: `Pull request ${index + 1}`,
+        filesUrl: `https://github.com/vatesfr/xen-orchestra/pull/${index + 1}/files`,
+        createdAt: "2026-10-01T10:00:00Z",
+        isDraft: false,
+        authorLogin: "author",
+        reviewRequests: pullRequest.reviewRequests,
+      })),
+    },
+  };
 }
 
-function errorResult(
-  reason: ErrorReason,
-): Result<readonly PullRequestReviewRequests[], ErrorReason> {
+function errorResult(reason: ErrorReason): Result<NormalizedPRs, ErrorReason> {
   return { ok: false, reason };
 }

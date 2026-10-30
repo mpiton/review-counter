@@ -18,11 +18,13 @@ export type { ErrorReason, GitHubFetch, MergeAccessLogins, NormalizedPRs, Result
 export type {
   GitHubOtherRequestedReviewer,
   GitHubOtherSearchNode,
+  GitHubPullRequestAuthor,
   GitHubPullRequestNode,
   GitHubRequestedReviewer,
   GitHubReviewRequestNode,
   GitHubReviewRequestsConnection,
   GitHubUserReviewer,
+  GitHubViewer,
   NormalizedCollaboratorsPage,
   NormalizedOpenPullRequestsPage,
   OpenPullRequestsGraphqlResponse,

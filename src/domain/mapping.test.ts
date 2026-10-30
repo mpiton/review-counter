@@ -99,6 +99,20 @@ describe("mapToTeams", () => {
     expect(mappedCounts.others).toEqual([]);
   });
 
+  it("shows a member configured in both teams in both sections, not in others", () => {
+    const sharedMember = { login: "alice", displayName: "Alice" };
+    const mappedCounts = mapToTeams(new Map([["alice", 2]]), {
+      frontend: [sharedMember],
+      backend: [sharedMember],
+    });
+
+    expect(mappedCounts).toEqual<TeamReviewCounts>({
+      frontend: [{ ...sharedMember, count: 2 }],
+      backend: [{ ...sharedMember, count: 2 }],
+      others: [],
+    });
+  });
+
   it("flags reviewers in the merge-access set with canMerge across all sections", () => {
     const counts = new Map([
       ["alice", 2],

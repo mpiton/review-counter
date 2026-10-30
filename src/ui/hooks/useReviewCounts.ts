@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import type { TeamReviewCounts } from "../../domain";
+import type { MyReviews, TeamReviewCounts } from "../../domain";
 import { sendMessage } from "../../messaging";
 import type { MessageErrorReason, Request } from "../../messaging";
 import type { ReviewCountsResponseMetadata } from "../../messaging";
@@ -27,6 +27,7 @@ export interface UseReviewCountsResult {
   readonly data: TeamReviewCounts | undefined;
   readonly error: ReviewCountsError | null;
   readonly meta: ReviewCountsResponseMetadata | undefined;
+  readonly myReviews: MyReviews | undefined;
   readonly refresh: () => Promise<void>;
   readonly status: ReviewCountsStatus;
 }
@@ -34,6 +35,7 @@ export interface UseReviewCountsResult {
 interface ReviewCountsSnapshot {
   readonly data: TeamReviewCounts;
   readonly meta: ReviewCountsResponseMetadata;
+  readonly myReviews: MyReviews;
 }
 
 /** Typed review count failure that preserves the background messaging error reason. */
@@ -89,6 +91,7 @@ export function useReviewCounts(): UseReviewCountsResult {
     data: query.data?.data,
     error: query.error,
     meta: query.data?.meta,
+    myReviews: query.data?.myReviews,
     refresh,
     status: toReviewCountsStatus(query.status),
   };
@@ -107,6 +110,7 @@ async function fetchReviewCounts(force: boolean): Promise<ReviewCountsSnapshot> 
     return {
       data: response.data,
       meta: response.meta,
+      myReviews: response.myReviews,
     };
   }
 
