@@ -11,7 +11,6 @@ import type {
   OpenPullRequestsSearchConnection,
   OpenPullRequestsSearchNode,
   RepositoryCollaboratorEdge,
-  RepositoryCollaboratorNode,
   RepositoryCollaboratorsConnection,
   RepositoryCollaboratorsGraphqlResponse,
   RepositoryCollaboratorsQueryResponse,
@@ -439,16 +438,7 @@ function isCollaboratorEdge(value: unknown): value is RepositoryCollaboratorEdge
     return false;
   }
 
-  return value.node === null || isCollaboratorNode(value.node);
-}
-
-function isCollaboratorNode(value: unknown): value is RepositoryCollaboratorNode {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "login" in value &&
-    typeof value.login === "string"
-  );
+  return value.node === null || hasStringLogin(value.node);
 }
 
 function isSearchConnection(value: unknown): value is OpenPullRequestsSearchConnection {

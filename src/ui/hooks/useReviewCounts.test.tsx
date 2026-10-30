@@ -64,6 +64,11 @@ const myReviews = {
   ],
 } satisfies MyReviews;
 
+const refreshedMyReviews = {
+  viewerLogin: "me",
+  pullRequests: [],
+} satisfies MyReviews;
+
 describe("useReviewCounts", () => {
   beforeEach(() => {
     messagingMock.sendMessage.mockReset();
@@ -107,7 +112,7 @@ describe("useReviewCounts", () => {
       .mockResolvedValueOnce({
         kind: "REVIEW_COUNTS",
         data: refreshedCounts,
-        myReviews,
+        myReviews: refreshedMyReviews,
         meta: refreshedMeta,
       });
 
@@ -125,6 +130,7 @@ describe("useReviewCounts", () => {
     await waitFor(() => {
       expect(rendered.current.status).toBe("success");
       expect(rendered.current.data).toEqual(refreshedCounts);
+      expect(rendered.current.myReviews).toEqual(refreshedMyReviews);
       expect(rendered.current.meta).toEqual(refreshedMeta);
     });
     expect(messagingMock.sendMessage).toHaveBeenCalledTimes(2);

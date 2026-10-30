@@ -122,6 +122,30 @@ describe("background message handlers", () => {
     expect(dependencies.fetchCalls).toEqual(["secret-token"]);
   });
 
+  it("discards a pending fetch when the token changes and refetches with the new token", async () => {
+    let resolvePreviousFetch: (result: Result<NormalizedPRs, ErrorReason>) => void = () =>
+      undefined;
+    const previousFetch = new Promise<Result<NormalizedPRs, ErrorReason>>((resolve) => {
+      resolvePreviousFetch = resolve;
+    });
+    const dependencies = createTestDependencies({
+      token: "previous-token",
+      fetchResults: [previousFetch, okResult([{ reviewRequests: [{ login: "bob" }] }])],
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+    const newAccountCounts = { frontend: [{ count: 0 }], backend: [{ count: 1 }], others: [] };
+
+    const pendingResponse = handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+    await handleMessage({ kind: "SET_TOKEN", token: "new-token" });
+    resolvePreviousFetch(okResult([{ reviewRequests: [{ login: "alice" }] }]));
+
+    await expect(pendingResponse).resolves.toMatchObject({ data: newAccountCounts });
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject({
+      data: newAccountCounts,
+    });
+    expect(dependencies.fetchCalls).toEqual(["previous-token", "new-token"]);
+  });
+
   it("marks reviewers with live merge access and leaves the rest unflagged", async () => {
     const dependencies = createTestDependencies({
       token: "secret-token",
@@ -274,7 +298,10 @@ describe("background message handlers", () => {
 
 function createTestDependencies(options: {
   readonly token: string | null;
-  readonly fetchResults?: readonly Result<NormalizedPRs, ErrorReason>[];
+  readonly fetchResults?: readonly (
+    | Result<NormalizedPRs, ErrorReason>
+    | Promise<Result<NormalizedPRs, ErrorReason>>
+  )[];
   readonly mergeAccessResult?: Result<readonly string[], ErrorReason>;
   readonly teamConfig?: TeamConfig;
   readonly openConfigurationError?: Error;

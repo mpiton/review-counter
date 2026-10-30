@@ -75,9 +75,26 @@ type FetchReviewCountsRequest = Extract<Request, { readonly kind: "FETCH_REVIEW_
 export function createMessageHandler(options: MessageHandlerOptions = {}): MessageHandler {
   const dependencies = createDependencies(options);
   let cache: ReviewCountsCacheEntry | null = null;
+  let tokenGeneration = 0;
 
   function invalidateCache(): void {
     cache = null;
+  }
+
+  /** Refetch when the token changes mid-flight, so one account's reviews never reach another. */
+  async function fetchForCurrentToken(): Promise<Response> {
+    const generation = tokenGeneration;
+    const response = await fetchReviewCounts(dependencies);
+
+    if (generation !== tokenGeneration) {
+      return fetchForCurrentToken();
+    }
+
+    if (response.kind === "REVIEW_COUNTS") {
+      cache = response;
+    }
+
+    return response;
   }
 
   return async (request) => {
@@ -87,6 +104,7 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
 
       case "SET_TOKEN":
         await dependencies.setToken(request.token);
+        tokenGeneration += 1;
         invalidateCache();
 
         return { kind: "OK" };
@@ -101,9 +119,7 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
           };
         }
 
-        return fetchReviewCounts(dependencies, (entry) => {
-          cache = entry;
-        });
+        return fetchForCurrentToken();
 
       case "OPEN_CONFIGURATION":
         return handleOpenConfigurationPopup(dependencies);
@@ -140,10 +156,7 @@ function createDependencies(options: MessageHandlerOptions): MessageHandlerDepen
   };
 }
 
-async function fetchReviewCounts(
-  dependencies: MessageHandlerDependencies,
-  writeCache: (entry: ReviewCountsCacheEntry) => void,
-): Promise<Response> {
+async function fetchReviewCounts(dependencies: MessageHandlerDependencies): Promise<Response> {
   const token = await dependencies.getToken();
 
   if (token === null) {
@@ -164,7 +177,6 @@ async function fetchReviewCounts(
     fetchedAt: dependencies.now(),
     openPullRequestCount: pullRequests.length,
   } satisfies ReviewCountsResponseMetadata;
-  writeCache({ data, myReviews, meta });
 
   return { kind: "REVIEW_COUNTS", data, myReviews, meta };
 }

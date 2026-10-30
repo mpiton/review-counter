@@ -36,7 +36,7 @@ describe("GitHub GraphQL open pull requests query", () => {
   });
 
   it("requests the token owner and the pull request fields shown to the viewer", () => {
-    expect(OPEN_PULL_REQUESTS_QUERY).toContain("viewer {");
+    expect(OPEN_PULL_REQUESTS_QUERY).toMatch(/viewer\s*\{\s*login\s*\}/);
 
     for (const field of ["title", "url", "createdAt", "isDraft", "author {"]) {
       expect(OPEN_PULL_REQUESTS_QUERY).toContain(field);
