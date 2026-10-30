@@ -4,7 +4,7 @@
  * request kind receives only the response shapes handled by its background route.
  */
 import { browser } from "wxt/browser";
-import type { TeamReviewCounts } from "../domain";
+import type { MyReviews, TeamReviewCounts } from "../domain";
 
 /**
  * Shared messaging failure reasons returned by the background service worker.
@@ -38,6 +38,7 @@ type OkResponse = { readonly kind: "OK" };
 type ReviewCountsResponse = {
   readonly kind: "REVIEW_COUNTS";
   readonly data: TeamReviewCounts;
+  readonly myReviews: MyReviews;
   readonly meta: ReviewCountsResponseMetadata;
 };
 type ErrorResponse = { readonly kind: "ERROR"; readonly reason: MessageErrorReason };

@@ -1,4 +1,5 @@
-import type { PullRequestReviewRequests, RequestedReviewer } from "../domain/aggregate";
+import type { RequestedReviewer } from "../domain/aggregate";
+import type { OpenPullRequest } from "../domain/myReviews";
 
 const graphql = String.raw;
 
@@ -35,10 +36,13 @@ export const MERGE_ACCESS_PERMISSIONS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * GraphQL query that fetches open pull requests and their requested user reviewers.
+ * GraphQL query that fetches the token owner, open pull requests, and their requested user reviewers.
  */
 export const OPEN_PULL_REQUESTS_QUERY = graphql`
   query OpenPullRequests($q: String!, $cursor: String) {
+    viewer {
+      login
+    }
     search(query: $q, type: ISSUE, first: 100, after: $cursor) {
       pageInfo {
         hasNextPage
@@ -48,6 +52,13 @@ export const OPEN_PULL_REQUESTS_QUERY = graphql`
         __typename
         ... on PullRequest {
           number
+          title
+          url
+          createdAt
+          isDraft
+          author {
+            login
+          }
           reviewRequests(first: 20) {
             nodes {
               requestedReviewer {
@@ -83,7 +94,15 @@ export interface OpenPullRequestsGraphqlResponse {
  * Typed data shape returned by the open pull requests query.
  */
 export interface OpenPullRequestsQueryResponse {
+  readonly viewer: GitHubViewer;
   readonly search: OpenPullRequestsSearchConnection;
+}
+
+/**
+ * GitHub user owning the token used for the query.
+ */
+export interface GitHubViewer {
+  readonly login: string;
 }
 
 /**
@@ -113,7 +132,19 @@ export type OpenPullRequestsSearchNode = GitHubPullRequestNode | GitHubOtherSear
 export interface GitHubPullRequestNode {
   readonly __typename: "PullRequest";
   readonly number: number;
+  readonly title: string;
+  readonly url: string;
+  readonly createdAt: string;
+  readonly isDraft: boolean;
+  readonly author: GitHubPullRequestAuthor | null;
   readonly reviewRequests: GitHubReviewRequestsConnection;
+}
+
+/**
+ * Pull request author, `null` on the parent node when the account no longer exists.
+ */
+export interface GitHubPullRequestAuthor {
+  readonly login: string;
 }
 
 /**
@@ -165,7 +196,8 @@ export interface GitHubOtherRequestedReviewer {
  */
 export interface NormalizedOpenPullRequestsPage {
   readonly pageInfo: OpenPullRequestsPageInfo;
-  readonly pullRequests: readonly PullRequestReviewRequests[];
+  readonly viewerLogin: string;
+  readonly pullRequests: readonly OpenPullRequest[];
 }
 
 /**
@@ -192,7 +224,7 @@ export function createOpenPullRequestsVariables(
 export function normalizeOpenPullRequestsResponse(
   response: OpenPullRequestsQueryResponse,
 ): NormalizedOpenPullRequestsPage {
-  const pullRequests: PullRequestReviewRequests[] = [];
+  const pullRequests: OpenPullRequest[] = [];
 
   for (const node of response.search.nodes ?? []) {
     if (!isPullRequestNode(node)) {
@@ -200,12 +232,19 @@ export function normalizeOpenPullRequestsResponse(
     }
 
     pullRequests.push({
+      number: node.number,
+      title: node.title,
+      filesUrl: `${node.url}/files`,
+      createdAt: node.createdAt,
+      isDraft: node.isDraft,
+      authorLogin: node.author?.login ?? null,
       reviewRequests: normalizeReviewRequests(node.reviewRequests.nodes),
     });
   }
 
   return {
     pageInfo: response.search.pageInfo,
+    viewerLogin: response.viewer.login,
     pullRequests,
   };
 }

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
-import type { TeamReviewCounts } from "../domain";
+import type { MyReviews, TeamReviewCounts } from "../domain";
 
 const runtimeMock = vi.hoisted(() => ({
   sendMessage: vi.fn(async (request: unknown): Promise<unknown> => request),
@@ -58,12 +58,18 @@ describe("messaging protocol", () => {
       backend: [],
       others: [],
     } satisfies TeamReviewCounts;
+    const myReviews = { viewerLogin: "me", pullRequests: [] } satisfies MyReviews;
     const meta = {
       fetchedAt: 1_700_000_000_000,
       openPullRequestCount: 12,
     } satisfies ReviewCountsResponseMetadata;
     const request = { kind: "FETCH_REVIEW_COUNTS", force: true } satisfies FetchReviewCountsRequest;
-    const response = { kind: "REVIEW_COUNTS", data, meta } satisfies ReviewCountsResponse;
+    const response = {
+      kind: "REVIEW_COUNTS",
+      data,
+      myReviews,
+      meta,
+    } satisfies ReviewCountsResponse;
     runtimeMock.sendMessage.mockResolvedValueOnce(response);
 
     await expect(sendMessage(request)).resolves.toEqual(response);

@@ -2,8 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { QueryClientConfig } from "@tanstack/react-query";
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { TeamReviewCounts } from "../../src/domain";
+import { useCallback, useEffect, useState } from "react";
 import type { MessageErrorReason } from "../../src/messaging";
 import { sendMessage } from "../../src/messaging";
 import { Overlay, PlanetButton } from "../../src/ui/components";
@@ -88,7 +87,6 @@ function OverlayShell() {
   });
   const [position, setPosition] = usePersistentOverlayPosition();
   const freshness = useCacheFreshness(reviewCounts.meta?.fetchedAt);
-  const total = useMemo(() => countRequestedReviews(reviewCounts.data), [reviewCounts.data]);
   const state = getOverlayState(
     reviewCounts.status,
     reviewCounts.error?.reason ?? null,
@@ -116,8 +114,8 @@ function OverlayShell() {
         onClick={() => setIsOpen(true)}
         planetImageUrl={overlayConfig.planetImageUrl}
         position={position}
+        reviewCount={reviewCounts.myReviews?.pullRequests.length ?? 0}
         state={state}
-        total={total}
       />
     );
   }
@@ -127,6 +125,7 @@ function OverlayShell() {
       className={overlayThemeClassName}
       data={reviewCounts.data}
       freshness={freshness}
+      myReviews={reviewCounts.myReviews}
       onClose={() => setIsOpen(false)}
       onOpenConfiguration={openConfiguration}
       onPositionChange={setPosition}
@@ -199,17 +198,6 @@ function getErrorOverlayState(reason: MessageErrorReason | null): OverlayStateKi
     case null:
       return "network-error";
   }
-}
-
-function countRequestedReviews(data: TeamReviewCounts | undefined): number {
-  if (data === undefined) {
-    return 0;
-  }
-
-  return [...data.frontend, ...data.backend, ...data.others].reduce(
-    (totalReviews, reviewCount) => totalReviews + reviewCount.count,
-    0,
-  );
 }
 
 function formatCacheFreshness(fetchedAt: number, now: number): string {

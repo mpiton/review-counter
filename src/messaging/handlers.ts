@@ -7,7 +7,8 @@
 import { teamConfig as defaultTeamConfig } from "../config/team.config";
 import { aggregate, normalizeLogin } from "../domain/aggregate";
 import { mapToTeams } from "../domain/mapping";
-import type { TeamConfig, TeamReviewCounts } from "../domain/types";
+import { selectMyReviews } from "../domain/myReviews";
+import type { MyReviews, TeamConfig, TeamReviewCounts } from "../domain/types";
 import {
   fetchMergeAccessLogins as defaultFetchMergeAccessLogins,
   fetchOpenPRs as defaultFetchOpenPRs,
@@ -64,6 +65,7 @@ interface MessageHandlerDependencies {
 
 interface ReviewCountsCacheEntry {
   readonly data: TeamReviewCounts;
+  readonly myReviews: MyReviews;
   readonly meta: ReviewCountsResponseMetadata;
 }
 
@@ -91,7 +93,12 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
 
       case "FETCH_REVIEW_COUNTS":
         if (shouldServeCachedReviewCounts(request, cache, dependencies)) {
-          return { kind: "REVIEW_COUNTS", data: cache.data, meta: cache.meta };
+          return {
+            kind: "REVIEW_COUNTS",
+            data: cache.data,
+            myReviews: cache.myReviews,
+            meta: cache.meta,
+          };
         }
 
         return fetchReviewCounts(dependencies, (entry) => {
@@ -150,14 +157,16 @@ async function fetchReviewCounts(
   }
 
   const mergeAccessLogins = await resolveMergeAccessLogins(dependencies, token);
-  const data = mapToTeams(aggregate(result.value), dependencies.teamConfig, mergeAccessLogins);
+  const { pullRequests, viewerLogin } = result.value;
+  const data = mapToTeams(aggregate(pullRequests), dependencies.teamConfig, mergeAccessLogins);
+  const myReviews = selectMyReviews(pullRequests, viewerLogin);
   const meta = {
     fetchedAt: dependencies.now(),
-    openPullRequestCount: result.value.length,
+    openPullRequestCount: pullRequests.length,
   } satisfies ReviewCountsResponseMetadata;
-  writeCache({ data, meta });
+  writeCache({ data, myReviews, meta });
 
-  return { kind: "REVIEW_COUNTS", data, meta };
+  return { kind: "REVIEW_COUNTS", data, myReviews, meta };
 }
 
 /**

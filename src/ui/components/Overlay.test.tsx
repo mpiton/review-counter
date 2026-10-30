@@ -6,8 +6,8 @@ import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import type { Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TeamReviewCounts } from "../../domain";
-import { Overlay, PlanetButton } from "./index";
+import type { MyReviews, TeamReviewCounts } from "../../domain";
+import { MyReviewsSection, Overlay, PlanetButton } from "./index";
 import type { OverlayStateKind } from "./types";
 
 const planetImageUrl = "https://example.com/planet.png";
@@ -20,6 +20,29 @@ const counts = {
   backend: [{ login: "dan-gh", displayName: "Daniel", count: 2 }],
   others: [{ login: "ext-gh", displayName: "ext-gh", count: 1 }],
 } satisfies TeamReviewCounts;
+const myReviews = {
+  viewerLogin: "me-gh",
+  pullRequests: [
+    {
+      number: 42,
+      title: "feat(xo-web): add something",
+      filesUrl: "https://github.com/vatesfr/xen-orchestra/pull/42/files",
+      createdAt: "2026-10-27T12:00:00Z",
+      isDraft: false,
+      authorLogin: "alice-gh",
+    },
+    {
+      number: 43,
+      title: "wip: not ready yet",
+      filesUrl: "https://github.com/vatesfr/xen-orchestra/pull/43/files",
+      createdAt: "2026-10-30T09:30:00Z",
+      isDraft: true,
+      authorLogin: null,
+    },
+  ],
+} satisfies MyReviews;
+const noReviews = { viewerLogin: "me-gh", pullRequests: [] } satisfies MyReviews;
+const now = Date.parse("2026-10-30T12:00:00Z");
 
 const mountedRoots: MountedRoot[] = [];
 
@@ -48,6 +71,45 @@ describe("overlay components", () => {
     expect(container.textContent).toContain("4");
     expect(container.textContent).toContain("12 PR ouvertes · maj il y a 30 s");
     expect(container.querySelector("[title='Charge élevée']")?.className).toContain("badge-hot");
+  });
+
+  it("renders the viewer's reviews above the team sections", () => {
+    const { container } = renderOverlay({ state: "ok" });
+    const text = container.textContent ?? "";
+
+    expect(text).toContain("MES REVIEWS");
+    expect(text.indexOf("MES REVIEWS")).toBeLessThan(text.indexOf("FRONTEND"));
+  });
+
+  it("links each of the viewer's reviews to its files with its context", () => {
+    const { container } = render(<MyReviewsSection myReviews={myReviews} now={now} />);
+    const links = [...container.querySelectorAll("a")];
+
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "https://github.com/vatesfr/xen-orchestra/pull/42/files",
+      "https://github.com/vatesfr/xen-orchestra/pull/43/files",
+    ]);
+    expect(links[0]?.textContent).toContain("feat(xo-web): add something");
+    expect(links[0]?.textContent).toContain("#42 · alice-gh · 3 j");
+    expect(links[0]?.textContent).not.toContain("brouillon");
+    expect(links[1]?.textContent).toContain("#43 · compte supprimé · 2 h · brouillon");
+  });
+
+  it("shows how many reviews the viewer has to handle", () => {
+    const { container } = render(<MyReviewsSection myReviews={myReviews} now={now} />);
+    const badge = container.querySelector("[aria-label='2 reviews à traiter']");
+
+    expect(badge?.textContent).toBe("2");
+    expect(badge?.className.toString()).toContain("bg-[var(--badge-hot)]");
+    expect(container.textContent).toContain("@me-gh");
+  });
+
+  it("tells the viewer when no review is waiting", () => {
+    const { container } = render(<MyReviewsSection myReviews={noReviews} now={now} />);
+
+    expect(container.textContent).toContain("Rien à traiter pour @me-gh");
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("[aria-label$='à traiter']")).toBeNull();
   });
 
   it("marks reviewers who can merge into the default branch", () => {
@@ -204,12 +266,13 @@ describe("overlay components", () => {
         onClick={() => undefined}
         planetImageUrl={planetImageUrl}
         position={position}
+        reviewCount={7}
         state="ok"
-        total={7}
       />,
     );
 
     expect(container.textContent).toContain("7");
+    expect(getButton(container, "Ouvrir Vates Reviews, 7 reviews à traiter")).not.toBeNull();
 
     act(() => {
       root.render(
@@ -217,8 +280,8 @@ describe("overlay components", () => {
           onClick={() => undefined}
           planetImageUrl={planetImageUrl}
           position={position}
+          reviewCount={0}
           state="auth-error"
-          total={0}
         />,
       );
     });
@@ -231,13 +294,28 @@ describe("overlay components", () => {
           onClick={() => undefined}
           planetImageUrl={planetImageUrl}
           position={position}
+          reviewCount={0}
           state="rate-limit"
-          total={0}
         />,
       );
     });
 
     expect(hasElementWithClass(container, "bg-[#be1622]")).toBe(true);
+  });
+
+  it("hides the launcher count when the viewer has nothing to handle", () => {
+    const { container } = render(
+      <PlanetButton
+        onClick={() => undefined}
+        planetImageUrl={planetImageUrl}
+        position={position}
+        reviewCount={0}
+        state="ok"
+      />,
+    );
+
+    expect(container.textContent).toBe("");
+    expect(getButton(container, "Ouvrir Vates Reviews")).not.toBeNull();
   });
 });
 
@@ -246,6 +324,7 @@ function renderOverlay(overrides: Partial<Parameters<typeof Overlay>[0]> = {}): 
     <Overlay
       data={counts}
       freshness="il y a 30 s"
+      myReviews={myReviews}
       onClose={() => undefined}
       onOpenConfiguration={() => undefined}
       onPositionChange={() => undefined}

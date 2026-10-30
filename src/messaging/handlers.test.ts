@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PullRequestReviewRequests } from "../domain/aggregate";
 import type { TeamConfig, TeamReviewCounts } from "../domain/types";
-import type { ErrorReason, Result } from "../github";
+import type { ErrorReason, NormalizedPRs, Result } from "../github";
 import { createMessageHandler } from "./handlers";
 import type {
   FetchMergeAccessLogins,
@@ -92,11 +92,33 @@ describe("background message handlers", () => {
         backend: [{ login: "bob", displayName: "Bob Backend", count: 0 }],
         others: [{ login: "unknown-reviewer", displayName: "unknown-reviewer", count: 1 }],
       } satisfies TeamReviewCounts,
+      myReviews: { viewerLogin: "me", pullRequests: [] },
       meta: {
         fetchedAt: 0,
         openPullRequestCount: 2,
       } satisfies ReviewCountsResponseMetadata,
     });
+    expect(dependencies.fetchCalls).toEqual(["secret-token"]);
+  });
+
+  it("exposes the viewer's reviews and serves them again from the cache", async () => {
+    const dependencies = createTestDependencies({
+      token: "secret-token",
+      fetchResults: [
+        okResult([{ reviewRequests: [{ login: "alice" }] }, { reviewRequests: [{ login: "ME" }] }]),
+      ],
+    });
+    const handleMessage = createMessageHandler(dependencies.options);
+    const expectedMyReviews = {
+      myReviews: { viewerLogin: "me", pullRequests: [{ number: 2 }] },
+    };
+
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject(
+      expectedMyReviews,
+    );
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject(
+      expectedMyReviews,
+    );
     expect(dependencies.fetchCalls).toEqual(["secret-token"]);
   });
 
@@ -252,7 +274,7 @@ describe("background message handlers", () => {
 
 function createTestDependencies(options: {
   readonly token: string | null;
-  readonly fetchResults?: readonly Result<readonly PullRequestReviewRequests[], ErrorReason>[];
+  readonly fetchResults?: readonly Result<NormalizedPRs, ErrorReason>[];
   readonly mergeAccessResult?: Result<readonly string[], ErrorReason>;
   readonly teamConfig?: TeamConfig;
   readonly openConfigurationError?: Error;
@@ -323,13 +345,25 @@ function createTestDependencies(options: {
 }
 
 function okResult(
-  value: readonly PullRequestReviewRequests[],
-): Result<readonly PullRequestReviewRequests[], ErrorReason> {
-  return { ok: true, value };
+  pullRequests: readonly PullRequestReviewRequests[],
+): Result<NormalizedPRs, ErrorReason> {
+  return {
+    ok: true,
+    value: {
+      viewerLogin: "me",
+      pullRequests: pullRequests.map((pullRequest, index) => ({
+        number: index + 1,
+        title: `Pull request ${index + 1}`,
+        filesUrl: `https://github.com/vatesfr/xen-orchestra/pull/${index + 1}/files`,
+        createdAt: "2026-10-01T10:00:00Z",
+        isDraft: false,
+        authorLogin: "author",
+        reviewRequests: pullRequest.reviewRequests,
+      })),
+    },
+  };
 }
 
-function errorResult(
-  reason: ErrorReason,
-): Result<readonly PullRequestReviewRequests[], ErrorReason> {
+function errorResult(reason: ErrorReason): Result<NormalizedPRs, ErrorReason> {
   return { ok: false, reason };
 }
