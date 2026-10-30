@@ -21,7 +21,6 @@ export const teamConfig: TeamConfig = {
     { login: "MelissaFrncJrg", displayName: "Mélissa Franca" },
     { login: "OlivierFL", displayName: "Olivier Floch" },
     { login: "pdonias", displayName: "Pierre Donias" },
-    { login: "UnelDev", displayName: "Énée Di Iorio" },
     { login: "Elise-FZI", displayName: "Elise Franzini" },
     { login: "sylvere-a", displayName: "Sylvère Armange" },
     { login: "sandrine-bd", displayName: "Sandrine Barrucand" },
@@ -29,16 +28,18 @@ export const teamConfig: TeamConfig = {
     { login: "AlineD-2912", displayName: "Aline Dvornyk" },
     { login: "ByScripts", displayName: "Thierry" },
     { login: "amouillard-vates", displayName: "Alexandre" },
+    { login: "MathieuRA", displayName: "Mathieu Raisin" },
   ],
   backend: [
     { login: "b-Nollet", displayName: "Bastien Nollet" },
     { login: "fbeauchamp", displayName: "Florent Beauchamp" },
     { login: "MathieuRA", displayName: "Mathieu Raisin" },
-    { login: "pierrebrunet289", displayName: "Pierre Brunet" },
     { login: "mpiton", displayName: "Mathieu Piton" },
     { login: "spacotte-vates", displayName: "Simon Pacotte" },
-    { login: "All-Ki", displayName: "Killian Allegrain" },
+    { login: "KAN-vates", displayName: "Killian Allegrain" },
     { login: "ayoub-el-kajji-v", displayName: "Ayoub El Kajji" },
+    { login: "GeraldineFromVates", displayName: "Géraldine" },
+    { login: "MelissaFrncJrg", displayName: "Mélissa Franca" },
   ],
 };
 
