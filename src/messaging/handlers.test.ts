@@ -146,6 +146,50 @@ describe("background message handlers", () => {
     expect(dependencies.fetchCalls).toEqual(["previous-token", "new-token"]);
   });
 
+  it("stops serving the previous account while the new token is being written", async () => {
+    let resolvePreviousFetch: (result: Result<NormalizedPRs, ErrorReason>) => void = () =>
+      undefined;
+    const previousFetch = new Promise<Result<NormalizedPRs, ErrorReason>>((resolve) => {
+      resolvePreviousFetch = resolve;
+    });
+    let releaseTokenWrite: () => void = () => undefined;
+    const tokenWrite = new Promise<void>((resolve) => {
+      releaseTokenWrite = resolve;
+    });
+    const dependencies = createTestDependencies({
+      token: "previous-token",
+      fetchResults: [
+        okResult([{ reviewRequests: [{ login: "alice" }] }]),
+        previousFetch,
+        okResult([{ reviewRequests: [{ login: "bob" }] }]),
+      ],
+    });
+    const handleMessage = createMessageHandler({
+      ...dependencies.options,
+      setToken: async (token) => {
+        await tokenWrite;
+        await dependencies.options.setToken?.(token);
+      },
+    });
+    const newAccountCounts = { frontend: [{ count: 0 }], backend: [{ count: 1 }], others: [] };
+
+    await handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+    const pendingWrite = handleMessage({ kind: "SET_TOKEN", token: "new-token" });
+    const responseDuringWrite = handleMessage({ kind: "FETCH_REVIEW_COUNTS" });
+    await vi.waitFor(() => {
+      expect(dependencies.fetchCalls).toEqual(["previous-token", "previous-token"]);
+    });
+    releaseTokenWrite();
+    await pendingWrite;
+    resolvePreviousFetch(okResult([{ reviewRequests: [{ login: "alice" }] }]));
+
+    await expect(responseDuringWrite).resolves.toMatchObject({ data: newAccountCounts });
+    await expect(handleMessage({ kind: "FETCH_REVIEW_COUNTS" })).resolves.toMatchObject({
+      data: newAccountCounts,
+    });
+    expect(dependencies.fetchCalls).toEqual(["previous-token", "previous-token", "new-token"]);
+  });
+
   it("marks reviewers with live merge access and leaves the rest unflagged", async () => {
     const dependencies = createTestDependencies({
       token: "secret-token",

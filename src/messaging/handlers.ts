@@ -77,7 +77,8 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
   let cache: ReviewCountsCacheEntry | null = null;
   let tokenGeneration = 0;
 
-  function invalidateCache(): void {
+  function markTokenChanged(): void {
+    tokenGeneration += 1;
     cache = null;
   }
 
@@ -103,9 +104,11 @@ export function createMessageHandler(options: MessageHandlerOptions = {}): Messa
         return { kind: "TOKEN", token: await dependencies.getToken() };
 
       case "SET_TOKEN":
+        // Before the write: stop serving the previous account. After it: drop fetches that started
+        // during the write, since they may have read the previous token.
+        markTokenChanged();
         await dependencies.setToken(request.token);
-        tokenGeneration += 1;
-        invalidateCache();
+        markTokenChanged();
 
         return { kind: "OK" };
 
